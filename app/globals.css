@@ -1,26 +1,421 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4ecdf;
+  --foreground: #1a2c30;
+  --muted: #5e6d68;
+  --line: rgba(8, 52, 60, 0.14);
+  --indigo: #0c3a44;
+  --marigold: #e8942a;
+  --terracotta: #c4623a;
+  --peacock: #0e7480;
+  --brass: #d7a441;
+  --sand: #efe2cc;
+  --paper: #fffaf3;
+  --sea: #08343c;
+  --foam: #f7f3ea;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-indigo: var(--indigo);
+  --color-marigold: var(--marigold);
+  --color-terracotta: var(--terracotta);
+  --color-peacock: var(--peacock);
+  --color-brass: var(--brass);
+  --color-sand: var(--sand);
+  --color-paper: var(--paper);
+  --font-sans: var(--font-sans);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), "Nirmala UI", sans-serif;
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgb(8 52 60 / 0.6);
+}
+
+.phone-bar {
+  display: flex;
+}
+
+.app-shell {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-main {
+  width: 100%;
+  height: 100%;
+}
+
+.app-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: min(20rem, calc(100% - 2.75rem));
+  max-width: 100%;
+  transform: translate3d(-110%, 0, 0);
+  transition: transform 0.25s ease;
+}
+
+.app-drawer.is-open {
+  transform: translate3d(0, 0, 0);
+}
+
+@media (min-width: 1024px) {
+  .drawer-backdrop,
+  .phone-bar,
+  .drawer-close {
+    display: none;
+  }
+
+  .app-shell {
+    display: flex;
+  }
+
+  .app-main {
+    flex: 1 1 auto;
+    width: auto;
+    height: auto;
+  }
+
+  .app-drawer,
+  .app-drawer.is-open {
+    position: static;
+    z-index: auto;
+    width: 20rem;
+    height: 100%;
+    flex-shrink: 0;
+    transform: none;
+  }
+
+  .starter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+::selection {
+  background: #f2c98a;
+  color: #0c3a44;
+}
+
+.font-display {
+  font-family: var(--font-display), "Nirmala UI", serif;
+}
+
+.shore {
+  background-color: var(--sea);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42' viewBox='0 0 42 42'%3E%3Cpath d='M21 2 L40 21 L21 40 L2 21 Z' fill='none' stroke='%23f4ecdf' stroke-opacity='0.14'/%3E%3Cpath d='M21 10 L32 21 L21 32 L10 21 Z' fill='none' stroke='%238fe3ea' stroke-opacity='0.18'/%3E%3Ccircle cx='21' cy='21' r='1.5' fill='%23f0a03a' fill-opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 42px 42px;
+  animation: drift 28s linear infinite;
+}
+
+.coast-room {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 55% 42% at 88% -8%, rgba(232, 148, 42, 0.34), transparent 62%),
+    radial-gradient(ellipse 48% 36% at -6% 108%, rgba(14, 116, 128, 0.16), transparent 58%),
+    radial-gradient(circle at 18% 12%, rgba(255, 250, 243, 0.7), transparent 26%);
+  background-size: 140% 140%, 130% 130%, 100% 100%;
+  animation: sky 16s ease-in-out infinite alternate;
+}
+
+.tide-bar {
+  height: 7px;
+  background-image: linear-gradient(
+    90deg,
+    #e8942a 0 14%,
+    #c4623a 14% 24%,
+    #08343c 24% 62%,
+    #0e7480 62% 82%,
+    #d7a441 82% 100%
+  );
+  background-size: 180% 100%;
+  animation: sheen 7s ease-in-out infinite;
+}
+
+.sunset-btn {
+  background-image: linear-gradient(100deg, #d9821d 0%, #f2c14e 42%, #e8942a 78%);
+  background-size: 180% 100%;
+  animation: sheen 5.5s ease-in-out infinite;
+  color: #0c3a44;
+  box-shadow: 0 7px 0 #8d4d16;
+}
+
+.sunset-btn:hover {
+  background-position: 100% 0;
+}
+
+.brand-name {
+  background-image: linear-gradient(100deg, #fff4c8 0%, #f2c14e 32%, #ff8a3d 58%, #7fe3ea 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: sheen 5.5s ease-in-out infinite;
+}
+
+.brand-name-ink {
+  background-image: linear-gradient(100deg, #c4623a 0%, #e8942a 42%, #0e7480 100%);
+}
+
+.tile-card {
+  background:
+    linear-gradient(var(--paper), var(--paper)) padding-box,
+    linear-gradient(135deg, rgba(232, 148, 42, 0.7), rgba(14, 116, 128, 0.55)) border-box;
+  border: 1px solid transparent;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.tile-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(8, 52, 60, 0.1);
+}
+
+.shell-input {
+  background: var(--paper);
+  box-shadow: 0 16px 36px rgba(8, 52, 60, 0.08);
+}
+
+.shell-input:focus-within {
+  box-shadow: 0 0 0 3px rgba(232, 148, 42, 0.35), 0 16px 36px rgba(8, 52, 60, 0.08);
+}
+
+.rise {
+  animation: rise 0.5s ease backwards;
+}
+
+.tile-card:disabled:hover {
+  transform: none;
+}
+
+.delay-1 {
+  animation-delay: 0.08s;
+}
+
+.delay-2 {
+  animation-delay: 0.16s;
+}
+
+.mark-float {
+  animation: bob 3.6s ease-in-out infinite;
+}
+
+.sun {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: sun-glow 3.2s ease-in-out infinite;
+}
+
+.tide {
+  stroke-dasharray: 7 9;
+  animation: dash 2.6s linear infinite;
+}
+
+.tide-slow {
+  animation-duration: 3.8s;
+  animation-direction: reverse;
+}
+
+.tide-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.tide-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--peacock);
+  animation: bob 0.9s ease-in-out infinite;
+}
+
+.tide-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.tide-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes drift {
+  to {
+    background-position: 42px 42px;
+  }
+}
+
+@keyframes sky {
+  from {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: -36px 18px, 24px -12px, 0 0;
+  }
+}
+
+@keyframes sheen {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+@keyframes sun-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -64;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shore,
+  .coast-room,
+  .tide-bar,
+  .sunset-btn,
+  .brand-name,
+  .rise,
+  .mark-float,
+  .sun,
+  .tide,
+  .tide-dots i {
+    animation: none;
+  }
+
+  .tile-card:hover {
+    transform: none;
+  }
+}
+
+.markdown p {
+  margin: 0.6em 0;
+}
+
+.markdown {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.markdown p:first-child {
+  margin-top: 0;
+}
+
+.markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0.5em 0;
+  padding-left: 1.25rem;
+}
+
+.markdown ul {
+  list-style: disc;
+}
+
+.markdown ol {
+  list-style: decimal;
+}
+
+.markdown a {
+  color: var(--peacock);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: #efe4d0;
+  padding: 0.1em 0.35em;
+  border-radius: 0.3rem;
+}
+
+.markdown pre {
+  overflow-x: auto;
+  background: var(--sea);
+  color: #f7f3ea;
+  padding: 0.85rem 1rem;
+  border-radius: 0.9rem;
+  margin: 0.75em 0;
+}
+
+.markdown pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  font-family: var(--font-display), "Nirmala UI", serif;
+  font-weight: 400;
+  margin: 0.8em 0 0.35em;
+}
+
+.markdown blockquote {
+  border-left: 3px solid var(--marigold);
+  margin: 0.6em 0;
+  padding-left: 0.8rem;
+  color: #3d4e4a;
 }
