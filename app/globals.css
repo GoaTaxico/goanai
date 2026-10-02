@@ -133,7 +133,7 @@ body {
   background-color: var(--sea);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42' viewBox='0 0 42 42'%3E%3Cpath d='M21 2 L40 21 L21 40 L2 21 Z' fill='none' stroke='%23f4ecdf' stroke-opacity='0.14'/%3E%3Cpath d='M21 10 L32 21 L21 32 L10 21 Z' fill='none' stroke='%238fe3ea' stroke-opacity='0.18'/%3E%3Ccircle cx='21' cy='21' r='1.5' fill='%23f0a03a' fill-opacity='0.55'/%3E%3C/svg%3E");
   background-size: 42px 42px;
-  animation: drift 28s linear infinite;
+  animation: drift 64s linear infinite;
 }
 
 .coast-room {
@@ -143,7 +143,7 @@ body {
     radial-gradient(ellipse 48% 36% at -6% 108%, rgba(14, 116, 128, 0.16), transparent 58%),
     radial-gradient(circle at 18% 12%, rgba(255, 250, 243, 0.7), transparent 26%);
   background-size: 140% 140%, 130% 130%, 100% 100%;
-  animation: sky 16s ease-in-out infinite alternate;
+  animation: sky 36s ease-in-out infinite alternate;
 }
 
 .tide-bar {
@@ -157,13 +157,13 @@ body {
     #d7a441 82% 100%
   );
   background-size: 180% 100%;
-  animation: sheen 7s ease-in-out infinite;
+  animation: sheen 16s ease-in-out infinite;
 }
 
 .sunset-btn {
   background-image: linear-gradient(100deg, #d9821d 0%, #f2c14e 42%, #e8942a 78%);
   background-size: 180% 100%;
-  animation: sheen 5.5s ease-in-out infinite;
+  animation: sheen 14s ease-in-out infinite;
   color: #0c3a44;
   box-shadow: 0 7px 0 #8d4d16;
 }
@@ -178,7 +178,7 @@ body {
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  animation: sheen 5.5s ease-in-out infinite;
+  animation: sheen 14s ease-in-out infinite;
 }
 
 .brand-name-ink {
@@ -198,6 +198,44 @@ body {
   box-shadow: 0 14px 28px rgba(8, 52, 60, 0.1);
 }
 
+.balcao {
+  margin: 0.4rem 0.4rem 0;
+  border-radius: 1.6rem 1.6rem 0 0;
+  background: #fffaf3;
+  box-shadow:
+    0 0 0 1px rgba(196, 98, 58, 0.28),
+    0 18px 40px rgba(8, 52, 60, 0.06);
+}
+
+.balcao-arch {
+  height: 16px;
+  margin: 0.55rem 14% 0;
+  flex-shrink: 0;
+  border: 2px solid rgba(196, 98, 58, 0.72);
+  border-bottom: 0;
+  border-radius: 999px 999px 0 0;
+}
+
+.kaavi-line {
+  display: block;
+  height: 8px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='8' viewBox='0 0 40 8'%3E%3Cpath d='M0 6.5c4 0 6-5 10-5s6 5 10 5 6-5 10-5 6 5 10 5' fill='none' stroke='%23c4623a' stroke-width='1.15'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 40px 8px;
+}
+
+.send-btn {
+  background: #0c3a44;
+  color: #f7f3ea;
+  transition: background 0.45s ease, box-shadow 0.45s ease, color 0.45s ease;
+}
+
+.send-btn.is-ready {
+  background-image: linear-gradient(100deg, #e8942a, #f2c14e 58%, #fff6d8);
+  color: #0c3a44;
+  box-shadow: 0 0 18px rgba(242, 193, 78, 0.55);
+}
+
 .shell-input {
   background: var(--paper);
   box-shadow: 0 16px 36px rgba(8, 52, 60, 0.08);
@@ -208,7 +246,7 @@ body {
 }
 
 .rise {
-  animation: rise 0.5s ease backwards;
+  animation: rise 0.8s ease backwards;
 }
 
 .tile-card:disabled:hover {
@@ -223,19 +261,31 @@ body {
   animation-delay: 0.16s;
 }
 
+@media (min-width: 640px) {
+  .balcao {
+    margin: 0.85rem 0.85rem 0;
+    border-radius: 2rem 2rem 0 0;
+  }
+
+  .balcao-arch {
+    height: 22px;
+    margin-top: 0.75rem;
+  }
+}
+
 .mark-float {
-  animation: bob 3.6s ease-in-out infinite;
+  animation: bob 6.5s ease-in-out infinite;
 }
 
 .sun {
   transform-origin: center;
   transform-box: fill-box;
-  animation: sun-glow 3.2s ease-in-out infinite;
+  animation: sun-glow 6s ease-in-out infinite;
 }
 
 .tide {
   stroke-dasharray: 7 9;
-  animation: dash 2.6s linear infinite;
+  animation: dash 7s linear infinite;
 }
 
 .tide-slow {
@@ -253,7 +303,7 @@ body {
   height: 6px;
   border-radius: 99px;
   background: var(--peacock);
-  animation: bob 0.9s ease-in-out infinite;
+  animation: bob 1.8s ease-in-out infinite;
 }
 
 .tide-dots i:nth-child(2) {

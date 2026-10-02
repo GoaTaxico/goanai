@@ -6,12 +6,10 @@ import { InstallButton } from "@/components/install-button";
 import { Mark } from "@/components/mark";
 import { Sidebar } from "@/components/sidebar";
 import { Thread } from "@/components/thread";
-import { isModelSlug, publicModels, type ModelSlug } from "@/lib/catalog";
 import {
   removeChat,
   selectChat,
   setLanguage,
-  setModel,
   startChat,
   updateMessages,
   useBharatState,
@@ -21,7 +19,6 @@ import { copy } from "@/lib/copy";
 export function ChatApp() {
   const state = useBharatState();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [readyModels, setReadyModels] = useState<ModelSlug[] | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
 
   const refreshUsage = useCallback(() => {
@@ -43,50 +40,18 @@ export function ChatApp() {
     document.documentElement.lang = state.lang === "hi" ? "hi" : "en";
   }, [state.lang]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    fetch("/api/models")
-      .then((response) => response.json())
-      .then((data: { models?: { id?: string }[] }) => {
-        if (cancelled) return;
-        const ids = (data.models ?? [])
-          .map((model) => model.id)
-          .filter((id): id is ModelSlug => isModelSlug(id));
-        setReadyModels(ids);
-      })
-      .catch(() => {
-        if (!cancelled) setReadyModels(publicModels.map((model) => model.id));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!readyModels?.length || state.chats.length === 0) return;
-    const activeChat = state.chats.find((chat) => chat.id === state.activeId);
-    if (activeChat && !readyModels.includes(activeChat.model)) {
-      setModel(readyModels[0]);
-    }
-  }, [readyModels, state.activeId, state.chats]);
-
   if (state.chats.length === 0) {
     return (
       <div className="coast-room grid h-dvh place-items-center text-indigo">
         <div className="rise flex flex-col items-center">
           <Mark className="mark-float h-20 w-20" />
-          <p className="brand-name brand-name-ink font-display mt-4 text-4xl tracking-wide">Goan AI</p>
+          <p className="brand-name brand-name-ink font-display mt-4 text-4xl tracking-wide">{copy[state.lang].brand}</p>
         </div>
       </div>
     );
   }
 
   const text = copy[state.lang];
-  const models = publicModels.filter((model) =>
-    readyModels ? readyModels.includes(model.id) : true,
-  );
   const ordered = [...state.chats].sort((a, b) => b.updatedAt - a.updatedAt);
   const active =
     state.chats.find((chat) => chat.id === state.activeId) ?? ordered[0];
@@ -100,7 +65,7 @@ export function ChatApp() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onNew={() => {
-          startChat(readyModels?.[0]);
+          startChat();
           setSidebarOpen(false);
         }}
         onSelect={(id) => {
@@ -130,12 +95,9 @@ export function ChatApp() {
           key={active.id}
           chatId={active.id}
           initialMessages={active.messages}
-          model={active.model}
-          models={models}
           copy={text}
           lang={state.lang}
           onMessages={updateMessages}
-          onModel={setModel}
           remaining={remaining}
           onSettled={refreshUsage}
         />

@@ -7,7 +7,7 @@ import {
 
 import { ERROR_BUSY, ERROR_LIMIT, ERROR_UNAVAILABLE } from "@/lib/limits";
 import { prepareMessages, redactStream } from "@/lib/messages";
-import { BHARAT_INSTRUCTIONS, geminiOptions, resolveModel } from "@/lib/models";
+import { BHARAT_INSTRUCTIONS, modelOptions, resolveModel } from "@/lib/models";
 import { consumeDailyMessage, getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -24,7 +24,7 @@ function plain(body: string, status: number) {
 }
 
 export async function POST(request: Request) {
-  let payload: { messages?: unknown; model?: unknown };
+  let payload: { messages?: unknown };
 
   try {
     payload = await request.json();
@@ -32,8 +32,7 @@ export async function POST(request: Request) {
     return plain(ERROR_BUSY, 400);
   }
 
-  const modelId = typeof payload.model === "string" ? payload.model : "";
-  const model = resolveModel(modelId);
+  const model = resolveModel();
   const messages = prepareMessages(payload.messages);
 
   if (!model || !messages) {
@@ -52,7 +51,7 @@ export async function POST(request: Request) {
       messages: await convertToModelMessages(messages),
       abortSignal: request.signal,
       maxRetries: 0,
-      providerOptions: geminiOptions(modelId),
+      providerOptions: modelOptions(),
     });
 
     return createUIMessageStreamResponse({

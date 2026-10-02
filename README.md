@@ -1,6 +1,6 @@
-# Goan AI
+# Susegad
 
-A guest chat app. Visitors see Goan Swift, Goan Pro, and Goan Reason. API keys stay on the server.
+A guest chat app. Visitors talk to Susegad. API keys stay on the server.
 
 ## Run
 

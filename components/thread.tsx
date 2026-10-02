@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import { Composer } from "@/components/composer";
 import { MarkdownMessage } from "@/components/markdown-message";
 import { Mark, TideLine } from "@/components/mark";
-import type { ModelSlug, PublicModel } from "@/lib/catalog";
 import type { Copy, Lang } from "@/lib/copy";
 import { shuffleStarterPrompts, useStarterPrompts } from "@/lib/prompts";
 import { ERROR_LIMIT, ERROR_UNAVAILABLE, MAX_MESSAGE_CHARS } from "@/lib/limits";
@@ -15,13 +14,10 @@ import { ERROR_LIMIT, ERROR_UNAVAILABLE, MAX_MESSAGE_CHARS } from "@/lib/limits"
 type ThreadProps = {
   chatId: string;
   initialMessages: UIMessage[];
-  model: ModelSlug;
   copy: Copy;
   lang: Lang;
-  models?: PublicModel[];
   remaining: number | null;
   onMessages: (chatId: string, messages: UIMessage[]) => void;
-  onModel: (model: ModelSlug) => void;
   onSettled: () => void;
 };
 
@@ -35,13 +31,10 @@ function messageText(message: UIMessage) {
 export function Thread({
   chatId,
   initialMessages,
-  model,
   copy,
   lang,
-  models,
   remaining,
   onMessages,
-  onModel,
   onSettled,
 }: ThreadProps) {
   const endRef = useRef<HTMLDivElement>(null);
@@ -55,7 +48,6 @@ export function Thread({
     messages: initialMessages,
     transport: new DefaultChatTransport({
       api: "/api/chat",
-      body: { model },
     }),
   });
 
@@ -127,20 +119,24 @@ export function Thread({
   }
 
   return (
-    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+    <div className="balcao flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="balcao-arch" aria-hidden="true" />
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-8 sm:py-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-5">
           {messages.length === 0 ? (
-            <div className="px-1 py-1 sm:py-12">
+            <div className="px-1 py-2 sm:py-8">
               <div className="rise mx-auto flex max-w-lg flex-col items-center text-center">
-                <Mark className="mark-float h-14 w-14 sm:h-20 sm:w-20" />
+                <Mark className="mark-float h-12 w-12 sm:h-16 sm:w-16" />
                 <div className="hidden sm:block">
                   <TideLine />
                 </div>
-                <p className="brand-name brand-name-ink mt-2 font-display text-xl tracking-wide sm:text-2xl">{copy.brand}</p>
-                <h1 className="font-display mt-1 max-w-full px-2 text-2xl leading-tight text-balance text-indigo sm:mt-2 sm:px-4 sm:text-5xl">
-                  {copy.emptyTitle}
+                <h1 className="brand-name brand-name-ink font-display mt-2 text-5xl leading-none tracking-wide sm:text-7xl">
+                  {copy.brand}
                 </h1>
+                <p className="mt-3 max-w-sm text-sm leading-6 text-indigo sm:text-base">{copy.mood}</p>
+                <p className="font-display mt-2 max-w-full px-2 text-lg leading-tight text-indigo sm:text-2xl">
+                  {copy.emptyTitle}
+                </p>
                 <p className="mt-3 max-w-sm text-sm text-muted">{copy.tagline}</p>
                 <p className="mt-4 max-w-sm text-sm font-medium text-indigo">{copy.about}</p>
                 <p className="mt-1 max-w-sm text-sm text-muted">
@@ -167,11 +163,7 @@ export function Thread({
                       index === 1 ? "delay-1" : index === 2 ? "delay-2" : ""
                     }`}
                   >
-                    <span
-                      className={`block h-1.5 ${
-                        index === 0 ? "bg-marigold" : index === 1 ? "bg-peacock" : "bg-terracotta"
-                      }`}
-                    />
+                    <span className="kaavi-line" />
                     <span className="block px-4 py-4 text-sm leading-6">{suggestion}</span>
                   </button>
                 ))}
@@ -236,12 +228,13 @@ export function Thread({
                     </form>
                   ) : (
                     <div
-                      className={`max-w-[90%] min-w-0 px-4 py-3 text-sm leading-6 break-words ${
+                      className={`max-w-[90%] min-w-0 overflow-hidden px-4 py-3 text-sm leading-6 break-words ${
                         mine
                           ? "rounded-[1.4rem] rounded-br-md bg-indigo text-[#f7f3ea] shadow-[0_10px_24px_rgba(8,52,60,0.12)]"
-                          : "rounded-[1.4rem] rounded-bl-md border border-line border-l-4 border-l-marigold bg-paper text-foreground shadow-[0_10px_24px_rgba(8,52,60,0.06)]"
+                          : "kaavi-reply rounded-[1.4rem] rounded-bl-md border border-line bg-paper text-foreground shadow-[0_10px_24px_rgba(8,52,60,0.06)]"
                       }`}
                     >
+                      {mine ? null : <span className="kaavi-line -mx-4 -mt-3 mb-3" />}
                       {mine ? (
                         <p className="whitespace-pre-wrap">{text}</p>
                       ) : text ? (
@@ -327,13 +320,9 @@ export function Thread({
       </div>
       <Composer
         copy={copy}
-        lang={lang}
-        model={model}
         status={status}
         limitReached={limitReached}
         remaining={remaining}
-        models={models}
-        onModel={onModel}
         onStop={() => {
           void stop();
         }}

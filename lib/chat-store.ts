@@ -3,7 +3,6 @@
 import { useSyncExternalStore } from "react";
 import type { UIMessage } from "ai";
 
-import type { ModelSlug } from "@/lib/catalog";
 import type { Lang } from "@/lib/copy";
 import {
   createChat,
@@ -85,10 +84,9 @@ export function updateMessages(id: string, messages: UIMessage[]) {
   });
 }
 
-export function startChat(model?: ModelSlug) {
+export function startChat() {
   const current = readClientState();
-  const active = current.chats.find((chat) => chat.id === current.activeId);
-  const chat = createChat(model ?? active?.model ?? "pro");
+  const chat = createChat();
   commit({
     ...current,
     chats: [chat, ...current.chats],
@@ -110,16 +108,6 @@ export function removeChat(id: string) {
     ...current,
     chats,
     activeId: current.activeId === id ? chats[0].id : current.activeId,
-  });
-}
-
-export function setModel(model: ModelSlug) {
-  const current = readClientState();
-  commit({
-    ...current,
-    chats: current.chats.map((chat) =>
-      chat.id === current.activeId ? { ...chat, model } : chat,
-    ),
   });
 }
 

@@ -24,12 +24,12 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Goan AI",
-  description: "Chat with Goan AI in English, Hindi, or Hinglish.",
-  applicationName: "Goan AI",
+  title: "Susegad",
+  description: "Chat with Susegad in English, Hindi, or Hinglish.",
+  applicationName: "Susegad",
   appleWebApp: {
     capable: true,
-    title: "Goan AI",
+    title: "Susegad",
     statusBarStyle: "default",
   },
 };

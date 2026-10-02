@@ -1,12 +1,11 @@
 import type { UIMessage } from "ai";
 
-import { isModelSlug, type ModelSlug } from "@/lib/catalog";
 import type { Lang } from "@/lib/copy";
 
 export type StoredChat = {
   id: string;
   title: string;
-  model: ModelSlug;
+  model: string;
   messages: UIMessage[];
   updatedAt: number;
 };
@@ -30,11 +29,11 @@ function write(key: string, value: string) {
   }
 }
 
-export function createChat(model: ModelSlug = "pro"): StoredChat {
+export function createChat(): StoredChat {
   return {
     id: crypto.randomUUID(),
     title: "",
-    model,
+    model: "chat",
     messages: [],
     updatedAt: Date.now(),
   };
@@ -46,7 +45,7 @@ function isStoredChat(value: unknown): value is StoredChat {
   return (
     typeof chat.id === "string" &&
     typeof chat.title === "string" &&
-    isModelSlug(chat.model) &&
+    typeof chat.model === "string" &&
     Array.isArray(chat.messages) &&
     typeof chat.updatedAt === "number"
   );

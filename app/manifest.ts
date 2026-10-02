@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Goan AI",
-    short_name: "Goan AI",
-    description: "Chat with Goan AI in English, Hindi, or Hinglish.",
+    name: "Susegad",
+    short_name: "Susegad",
+    description: "Chat with Susegad in English, Hindi, or Hinglish.",
     start_url: "/",
     display: "standalone",
     background_color: "#f4ecdf",

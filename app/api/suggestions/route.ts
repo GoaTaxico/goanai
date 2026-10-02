@@ -1,6 +1,6 @@
 import { generateText } from "ai";
 
-import { geminiOptions, resolveModel } from "@/lib/models";
+import { modelOptions, resolveModel } from "@/lib/models";
 
 export const runtime = "nodejs";
 
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   const answer = typeof payload.answer === "string" ? payload.answer.slice(0, 1500) : "";
   if (!question || !answer) return Response.json({ suggestions: [] });
 
-  const model = resolveModel("swift");
+  const model = resolveModel();
   if (!model) return Response.json({ suggestions: [] });
 
   try {
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       model,
       maxRetries: 0,
       abortSignal: AbortSignal.timeout(12_000),
-      providerOptions: geminiOptions("swift"),
+      providerOptions: modelOptions(),
       instructions:
         "Write exactly 3 short follow-up questions the person might ask next. Use the same language as the user. Return only a JSON array of 3 strings.",
       prompt: `User:\n${question}\n\nAssistant:\n${answer}`,
