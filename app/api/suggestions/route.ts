@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     const { text } = await generateText({
       model,
       maxRetries: 0,
-      abortSignal: AbortSignal.timeout(12_000),
+      abortSignal: AbortSignal.any([AbortSignal.timeout(8_000), request.signal]),
       providerOptions: modelOptions(),
       instructions:
         "Write exactly 3 short follow-up questions the person might ask next. Use the same language as the user. Return only a JSON array of 3 strings.",

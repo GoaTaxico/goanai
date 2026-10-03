@@ -237,7 +237,17 @@ export function shuffleStarterPrompts() {
   listeners.forEach((listener) => listener());
 }
 
+const kokPrompts = [
+  "UPI सोंप्या उतरांनी समजायात",
+  "गोंयांत वीकेंड प्लान करात",
+  "शिक्षकाक एक विनम्र संदेश बरयात",
+  "GST सोंप्या उतरांनी समजायात",
+  "शेजार्‍याक धन्यवाद संदेश बरयात",
+  "PAN कार्ड सोंप्या उतरांनी समजायात",
+];
+
 export function useStarterPrompts(lang: Lang) {
   const indices = useSyncExternalStore(subscribe, pickThree, () => none);
+  if (lang === "kok") return indices.map((index) => kokPrompts[index % kokPrompts.length]);
   return indices.map((index) => promptIdeas[index][lang]);
 }

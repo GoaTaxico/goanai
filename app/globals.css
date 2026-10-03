@@ -245,6 +245,36 @@ body {
   box-shadow: 0 0 0 3px rgba(232, 148, 42, 0.35), 0 16px 36px rgba(8, 52, 60, 0.08);
 }
 
+.tide-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 92%, white);
+  box-shadow: 0 8px 18px rgba(8, 52, 60, 0.06);
+}
+
+.tide-action {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--indigo);
+}
+
+.tide-action:hover {
+  background: var(--sand);
+}
+
+.tide-action.is-on {
+  background: var(--peacock);
+  color: #f7f3ea;
+}
+
 .rise {
   animation: rise 0.8s ease backwards;
 }

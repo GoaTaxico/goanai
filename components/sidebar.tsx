@@ -3,6 +3,7 @@ import { useState } from "react";
 import { InstallButton } from "@/components/install-button";
 import { Mark } from "@/components/mark";
 import type { Copy } from "@/lib/copy";
+import type { Note } from "@/lib/notes";
 import type { StoredChat } from "@/lib/storage";
 
 type SidebarProps = {
@@ -17,6 +18,9 @@ type SidebarProps = {
   onRename: (id: string, title: string) => void;
   onPin: (id: string) => void;
   onLanguage: () => void;
+  onExport: () => void;
+  notes: Note[];
+  onDeleteNote: (id: string) => void;
   remaining: number | null;
 };
 
@@ -32,6 +36,9 @@ export function Sidebar({
   onRename,
   onPin,
   onLanguage,
+  onExport,
+  notes,
+  onDeleteNote,
   remaining,
 }: SidebarProps) {
   const [query, setQuery] = useState("");
@@ -177,7 +184,36 @@ export function Sidebar({
             );
           })}
         </nav>
+        <div className="border-t border-white/10 px-4 py-3">
+          <p className="pb-2 text-xs font-semibold tracking-[0.18em] text-[#f2c98a]">{copy.notes}</p>
+          {notes.length === 0 ? (
+            <p className="text-xs leading-5 text-[#c9ddd8]">{copy.emptyNotes}</p>
+          ) : (
+            <ul className="max-h-32 space-y-2 overflow-y-auto">
+              {notes.map((note) => (
+                <li key={note.id} className="flex items-start gap-2">
+                  <p className="min-w-0 flex-1 text-xs leading-5 text-[#f7f3ea]">{note.text}</p>
+                  <button
+                    type="button"
+                    aria-label={copy.deleteNote}
+                    onClick={() => onDeleteNote(note.id)}
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-sm text-[#c9ddd8] hover:text-white"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         <div className="space-y-3 border-t border-white/10 p-4">
+          <button
+            type="button"
+            onClick={onExport}
+            className="w-full rounded-full border border-[#f2c98a]/50 px-3 py-2 text-sm text-[#f7f3ea] hover:bg-white/10"
+          >
+            {copy.exportChat}
+          </button>
           {remaining != null ? (
             <p className="text-sm font-semibold text-[#f7f3ea]">
               {copy.remaining.replace("{count}", String(remaining))}

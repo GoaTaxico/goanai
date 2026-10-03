@@ -1,5 +1,6 @@
 import { ERROR_BUSY, ERROR_IMAGE_LIMIT, ERROR_UNAVAILABLE } from "@/lib/limits";
-import { blockImages, knownImageJob, releaseImage, rememberImageJob, takeImage } from "@/lib/quotas";
+import { blockImages, knownImageJob, localImageFor, releaseImage, rememberImageJob, rememberLocalImage, takeImage } from "@/lib/quotas";
+import { storeGeneratedImage } from "@/lib/stored-image";
 import { getClientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
@@ -83,6 +84,9 @@ export async function GET(request: Request) {
     return json({ error: ERROR_BUSY }, 404);
   }
 
+  const saved = localImageFor(id);
+  if (saved) return json({ status: "succeeded", url: saved });
+
   try {
     const response = await fetch(`https://api.xkiro.com/v1/images/generations/${id}`, {
       headers,
@@ -94,8 +98,16 @@ export async function GET(request: Request) {
       status?: string;
       data?: Array<{ url?: string }>;
     };
-    const url = job.data?.find((item) => typeof item.url === "string" && item.url.startsWith("https://"))?.url;
-    return json({ status: job.status ?? "processing", url });
+    const status = job.status ?? "processing";
+    if (status !== "succeeded") return json({ status });
+
+    const remote = job.data?.find((item) => typeof item.url === "string" && item.url.startsWith("https://"))?.url;
+    if (!remote) return json({ status: "failed" });
+
+    const url = await storeGeneratedImage(remote);
+    if (!url) return json({ status: "failed" });
+    rememberLocalImage(id, url);
+    return json({ status: "succeeded", url });
   } catch {
     return json({ status: "processing" });
   }

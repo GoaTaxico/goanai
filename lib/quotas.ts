@@ -3,6 +3,7 @@ import "server-only";
 import { istDay, visitorHash } from "@/lib/rate-limit";
 
 const SEARCH_CAP = 15;
+const FETCH_CAP = 15;
 const IMAGE_ACCOUNT_CAP = 8;
 const IMAGE_VISITOR_CAP = 2;
 
@@ -16,6 +17,9 @@ const globalStore = globalThis as typeof globalThis & {
     imagesBlocked: boolean;
     visitors: Map<string, Bucket>;
     jobs: Set<string>;
+    saved: Map<string, string>;
+    fetch: Bucket;
+    fetchBlocked: boolean;
   };
 };
 
@@ -26,7 +30,13 @@ const quotas = globalStore.__susegadQuotas ?? {
   imagesBlocked: false,
   visitors: new Map<string, Bucket>(),
   jobs: new Set<string>(),
+  saved: new Map<string, string>(),
+  fetch: { day: "", count: 0 },
+  fetchBlocked: false,
 };
+if (!quotas.saved) quotas.saved = new Map<string, string>();
+if (!quotas.fetch) quotas.fetch = { day: "", count: 0 };
+if (quotas.fetchBlocked === undefined) quotas.fetchBlocked = false;
 globalStore.__susegadQuotas = quotas;
 
 function fresh(bucket: Bucket) {
@@ -53,6 +63,22 @@ export function noteSearch() {
 export function blockSearch() {
   fresh(quotas.search);
   quotas.searchBlocked = true;
+}
+
+export function canFetch() {
+  if (fresh(quotas.fetch)) quotas.fetchBlocked = false;
+  return !quotas.fetchBlocked && quotas.fetch.count < FETCH_CAP;
+}
+
+export function noteFetch() {
+  fresh(quotas.fetch);
+  quotas.fetch.count += 1;
+  if (quotas.fetch.count >= FETCH_CAP) quotas.fetchBlocked = true;
+}
+
+export function blockFetch() {
+  fresh(quotas.fetch);
+  quotas.fetchBlocked = true;
 }
 
 export function takeImage(ip: string) {
@@ -102,4 +128,12 @@ export function rememberImageJob(id: string) {
 
 export function knownImageJob(id: string) {
   return quotas.jobs.has(id);
+}
+
+export function localImageFor(jobId: string) {
+  return quotas.saved.get(jobId) ?? null;
+}
+
+export function rememberLocalImage(jobId: string, url: string) {
+  quotas.saved.set(jobId, url);
 }

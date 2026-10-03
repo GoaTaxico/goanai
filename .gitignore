@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# Pictures drawn in the app. The folder stays; the files do not.
+/public/images/*
+!/public/images/.gitkeep
+
 # production
 /build
 

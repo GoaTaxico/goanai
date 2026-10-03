@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       tools: indiaTools,
       stopWhen: isStepCount(4),
       abortSignal: request.signal,
-      maxRetries: 0,
+      maxRetries: 2,
       providerOptions: modelOptions(),
     });
 

@@ -6,11 +6,16 @@ import { useEffect, useRef, useState } from "react";
 
 import { Composer } from "@/components/composer";
 import { MarkdownMessage } from "@/components/markdown-message";
+import { MessageActions } from "@/components/message-actions";
+import { QuizCard } from "@/components/quiz-card";
 import { Mark, TideLine } from "@/components/mark";
 import type { Copy, Lang } from "@/lib/copy";
 import { drawPicture } from "@/lib/draw";
 import { ERROR_LIMIT, ERROR_UNAVAILABLE, MAX_MESSAGE_CHARS } from "@/lib/limits";
+import { saveNote } from "@/lib/notes";
 import { shuffleStarterPrompts, useStarterPrompts } from "@/lib/prompts";
+import { parseQuiz, quizBrief, readableMessage, visibleMessage } from "@/lib/quiz";
+import { sourceLinks } from "@/lib/sources";
 
 type ThreadProps = {
   chatId: string;
@@ -29,17 +34,27 @@ function messageText(message: UIMessage) {
     .join("");
 }
 
+function localImage(url: string) {
+  return /^\/images\/[0-9a-f-]{36}\.(png|jpe?g|webp)$/i.test(url);
+}
+
 function messageImages(message: UIMessage) {
   return message.parts.filter(
     (part): part is FileUIPart =>
       part.type === "file" &&
       part.mediaType.startsWith("image/") &&
-      (part.url.startsWith("data:image/jpeg;base64,") || part.url.startsWith("https://")),
+      (part.url.startsWith("data:image/jpeg;base64,") || localImage(part.url)),
   );
 }
 
 function plainText(text: string) {
   return text.replace(/[`*_#>]/g, "").trim();
+}
+
+function quizLanguage(lang: Lang) {
+  if (lang === "hi") return "Hindi";
+  if (lang === "kok") return "Konkani";
+  return "English";
 }
 
 export function Thread({
@@ -53,9 +68,11 @@ export function Thread({
 }: ThreadProps) {
   const endRef = useRef<HTMLDivElement>(null);
   const drawAbort = useRef<AbortController | null>(null);
+  const suggestionsAbort = useRef<AbortController | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [notedId, setNotedId] = useState<string | null>(null);
   const [followUps, setFollowUps] = useState<string[]>([]);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [drawing, setDrawing] = useState(false);
@@ -98,12 +115,16 @@ export function Thread({
 
   useEffect(() => {
     if (status !== "ready" || !lastId || !answer || !question || lastHasImage) return;
+    if (answer.includes("@@quiz") || question.includes("[quiz]")) return;
 
+    const controller = new AbortController();
+    suggestionsAbort.current = controller;
     let cancelled = false;
     fetch("/api/suggestions", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ question, answer }),
+      signal: controller.signal,
     })
       .then((response) => response.json())
       .then((data: { suggestions?: string[] }) => {
@@ -115,6 +136,8 @@ export function Thread({
 
     return () => {
       cancelled = true;
+      controller.abort();
+      if (suggestionsAbort.current === controller) suggestionsAbort.current = null;
     };
   }, [status, lastId, answer, question, lastHasImage]);
 
@@ -126,8 +149,11 @@ export function Thread({
   const waiting = (status === "submitted" || status === "streaming") && !answer;
   const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
   const lastAssistantId = lastAssistant?.id;
+  const lastQuiz = lastAssistant ? parseQuiz(messageText(lastAssistant)) : null;
+  const quizOpen = lastQuiz ? lastQuiz.mark !== "done" : Boolean(lastAssistant && messageText(lastAssistant).includes("@@quiz"));
   const canRewrite =
     Boolean(lastAssistant && messageText(lastAssistant) && messageImages(lastAssistant).length === 0) &&
+    !quizOpen &&
     !busy &&
     !outOfMessages;
 
@@ -152,7 +178,7 @@ export function Thread({
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text.slice(0, 3000));
-    utterance.lang = lang === "hi" ? "hi-IN" : "en-IN";
+    utterance.lang = lang === "hi" ? "hi-IN" : lang === "kok" ? "kok-IN" : "en-IN";
     utterance.onend = () => setSpeakingId((current) => (current === id ? null : current));
     setSpeakingId(id);
     window.speechSynthesis.speak(utterance);
@@ -203,20 +229,72 @@ export function Thread({
     }
   }
 
-  async function send(message: { text: string; image?: FileUIPart | null; draw: boolean }) {
+  function stopSuggestions() {
+    suggestionsAbort.current?.abort();
+    suggestionsAbort.current = null;
+    setFollowUps([]);
+  }
+
+  async function shareMessage(text: string, imageUrl?: string) {
+    const caption = plainText(text).slice(0, 4000);
+    if (imageUrl) {
+      try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const extension = imageUrl.endsWith(".webp") ? "webp" : imageUrl.endsWith(".jpg") || imageUrl.endsWith(".jpeg") ? "jpg" : "png";
+        const file = new File([blob], `susegad.${extension}`, { type: blob.type || "image/png" });
+        if (navigator.canShare?.({ files: [file] })) {
+          await navigator.share({ files: [file], text: caption });
+          return;
+        }
+      } catch (caught) {
+        if (caught instanceof DOMException && caught.name === "AbortError") return;
+      }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, "_blank", "noopener,noreferrer");
+  }
+
+  async function send(message: { text: string; image?: FileUIPart | null; draw: boolean; quiz?: boolean }) {
     if (message.draw) return requestPicture(message.text);
+    stopSuggestions();
     clearError();
     setDrawError(null);
-    setFollowUps([]);
-    const text = message.text.trim() || (message.image ? copy.lookPrompt : "");
+    const trimmed = message.text.trim();
+    let text = trimmed;
+    if (message.quiz) {
+      const visible = message.image
+        ? trimmed
+          ? `${copy.quizPhoto} — ${trimmed}`
+          : copy.quizPhoto
+        : trimmed
+          ? copy.quizStartTopic.replace("{topic}", trimmed)
+          : copy.quizStart;
+      text = `${visible}\n${quizBrief({
+        kind: "start",
+        topic: trimmed,
+        photo: Boolean(message.image),
+        language: quizLanguage(lang),
+      })}`;
+    } else if (!text && message.image) {
+      text = copy.lookPrompt;
+    }
     if (!text) return false;
     void sendMessage(message.image ? { text, files: [message.image] } : { text });
     return true;
   }
 
-  function askAgain(text: string) {
+  function chooseAnswer(letter: string, label: string) {
+    if (busy || outOfMessages) return;
+    stopSuggestions();
     clearError();
-    setFollowUps([]);
+    void sendMessage({
+      text: `${letter}. ${label}\n${quizBrief({ kind: "answer", language: quizLanguage(lang) })}`,
+    });
+  }
+
+  function askAgain(text: string) {
+    stopSuggestions();
+    clearError();
     void sendMessage({ text });
   }
 
@@ -260,7 +338,7 @@ export function Thread({
                     key={suggestion}
                     type="button"
                     disabled={outOfMessages}
-                    onClick={() => void send({ text: suggestion, draw: false })}
+                    onClick={() => void send({ text: suggestion, draw: false, quiz: false })}
                     className={`tile-card rise overflow-hidden rounded-3xl text-left disabled:opacity-50 ${
                       index === 1 ? "delay-1" : index === 2 ? "delay-2" : ""
                     }`}
@@ -282,10 +360,15 @@ export function Thread({
             </div>
           ) : (
             messages.map((message) => {
-              const text = messageText(message);
-              const images = messageImages(message);
-              if (!text && images.length === 0 && message.role !== "assistant") return null;
+              const raw = messageText(message);
               const mine = message.role === "user";
+              const quiz = mine ? null : parseQuiz(raw);
+              const text = quiz ? readableMessage(raw) : visibleMessage(raw);
+              const pendingQuiz = !quiz && !mine && raw.includes("@@quiz") && busy && message.id === last?.id;
+              const images = messageImages(message);
+              const savedImage = images.find((image) => localImage(image.url))?.url;
+              if (!text && images.length === 0 && message.role !== "assistant") return null;
+              const links = mine ? [] : sourceLinks(message);
               const editing = editingId === message.id;
 
               return (
@@ -344,6 +427,15 @@ export function Thread({
                       ))}
                       {mine ? (
                         <p className="whitespace-pre-wrap">{text}</p>
+                      ) : quiz ? (
+                        <QuizCard
+                          copy={copy}
+                          quiz={quiz}
+                          live={message.id === lastAssistantId && quiz.mark !== "done" && !busy && !outOfMessages}
+                          onChoose={chooseAnswer}
+                        />
+                      ) : pendingQuiz ? (
+                        <p className="text-muted">{copy.thinking}</p>
                       ) : text ? (
                         <MarkdownMessage text={text} />
                       ) : (
@@ -351,44 +443,52 @@ export function Thread({
                       )}
                     </div>
                   )}
-                  {text && !editing ? (
-                    <div className={`flex flex-wrap gap-x-3 gap-y-1 px-2 text-xs text-muted ${mine ? "justify-end" : ""}`}>
-                      <button type="button" onClick={() => void copyText(message.id, text)}>
-                        {copiedId === message.id ? copy.copied : copy.copy}
-                      </button>
-                      {mine && images.length === 0 && !busy && !outOfMessages ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingId(message.id);
-                            setDraft(text);
-                          }}
+                  {text && !editing && !pendingQuiz ? (
+                    <MessageActions
+                      copy={copy}
+                      mine={mine}
+                      copied={copiedId === message.id}
+                      speaking={speakingId === message.id}
+                      canEdit={mine && images.length === 0 && !raw.includes("[quiz]") && !busy && !outOfMessages}
+                      canRetry={!mine && message.id === lastAssistantId && images.length === 0 && !busy && !outOfMessages}
+                      downloadUrl={savedImage}
+                      noted={notedId === message.id}
+                      onCopy={() => void copyText(message.id, text)}
+                      onWhatsApp={() => void shareMessage(text, savedImage)}
+                      onListen={() => toggleSpeak(message.id, plainText(text))}
+                      onRetry={() => {
+                        stopSuggestions();
+                        clearError();
+                        void regenerate();
+                      }}
+                      onEdit={() => {
+                        setEditingId(message.id);
+                        setDraft(text);
+                      }}
+                      onNote={
+                        mine
+                          ? undefined
+                          : () => {
+                              saveNote(plainText(text));
+                              setNotedId(message.id);
+                            }
+                      }
+                    />
+                  ) : null}
+                  {!mine && links.length > 0 ? (
+                    <div className="flex max-w-[90%] flex-wrap gap-2 px-1">
+                      <span className="text-xs font-medium text-muted">{copy.sources}</span>
+                      {links.map((link) => (
+                        <a
+                          key={link.url}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="max-w-full truncate rounded-full border border-line bg-paper px-3 py-1 text-xs font-semibold text-peacock"
                         >
-                          {copy.edit}
-                        </button>
-                      ) : null}
-                      {!mine ? (
-                        <button type="button" onClick={() => void copyText(`${message.id}-wa`, plainText(text))}>
-                          {copiedId === `${message.id}-wa` ? copy.copied : copy.whatsapp}
-                        </button>
-                      ) : null}
-                      {!mine ? (
-                        <button type="button" onClick={() => toggleSpeak(message.id, plainText(text))}>
-                          {speakingId === message.id ? copy.listenStop : copy.listen}
-                        </button>
-                      ) : null}
-                      {!mine && message.id === lastAssistantId && images.length === 0 && !busy && !outOfMessages ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            clearError();
-                            setFollowUps([]);
-                            void regenerate();
-                          }}
-                        >
-                          {copy.regenerate}
-                        </button>
-                      ) : null}
+                          {link.title}
+                        </a>
+                      ))}
                     </div>
                   ) : null}
                 </article>
@@ -411,6 +511,24 @@ export function Thread({
               >
                 {copy.otherLanguage}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const material = lastAssistant ? readableMessage(messageText(lastAssistant)).slice(0, 1500) : "";
+                  clearError();
+                  setFollowUps([]);
+                  void sendMessage({
+                    text: `${copy.quizOnThis}\n${quizBrief({
+                      kind: "start",
+                      material,
+                      language: quizLanguage(lang),
+                    })}`,
+                  });
+                }}
+                className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-indigo"
+              >
+                {copy.quiz}
+              </button>
             </div>
           ) : null}
           {status === "ready" && followUps.length > 0 && !outOfMessages ? (
@@ -421,7 +539,7 @@ export function Thread({
                   <button
                     key={item}
                     type="button"
-                    onClick={() => void send({ text: item, draw: false })}
+                    onClick={() => void send({ text: item, draw: false, quiz: false })}
                     className="rounded-2xl border border-line bg-paper px-4 py-3 text-left text-sm transition hover:-translate-y-0.5 hover:border-peacock"
                   >
                     {item}

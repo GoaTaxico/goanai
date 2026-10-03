@@ -37,7 +37,7 @@ export async function drawPicture(prompt: string, signal: AbortSignal): Promise<
     await sleep(3000, signal);
     const polled = await fetch(`/api/image?id=${encodeURIComponent(payload.id)}`, { signal });
     const job = (await polled.json()) as { status?: string; url?: string };
-    if (job.status === "succeeded" && job.url?.startsWith("https://")) {
+    if (job.status === "succeeded" && job.url?.startsWith("/images/")) {
       return { ok: true, url: job.url };
     }
     if (job.status === "failed" || job.status === "blocked") {

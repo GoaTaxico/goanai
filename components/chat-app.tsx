@@ -16,10 +16,32 @@ import {
   updateMessages,
   useBharatState,
 } from "@/lib/chat-store";
-import { copy } from "@/lib/copy";
+import { copy, type Lang } from "@/lib/copy";
+import { removeNote, useNotes } from "@/lib/notes";
+import { readableMessage } from "@/lib/quiz";
+
+function nextLanguage(lang: Lang): Lang {
+  if (lang === "en") return "hi";
+  if (lang === "hi") return "kok";
+  return "en";
+}
+
+function chatTranscript(title: string, messages: { role: string; parts: { type: string; text?: string }[] }[]) {
+  const lines = messages.map((message) => {
+    const text = message.parts
+      .filter((part) => part.type === "text" && part.text)
+      .map((part) => part.text)
+      .join("");
+    const readable = readableMessage(text);
+    if (!readable.trim()) return "";
+    return `${message.role === "user" ? "You" : "Susegad"}\n${readable.trim()}`;
+  });
+  return [`${title || "Susegad"}`, "", ...lines.filter(Boolean)].join("\n\n");
+}
 
 export function ChatApp() {
   const state = useBharatState();
+  const notes = useNotes();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
 
@@ -39,7 +61,7 @@ export function ChatApp() {
   }, [refreshUsage]);
 
   useEffect(() => {
-    document.documentElement.lang = state.lang === "hi" ? "hi" : "en";
+    document.documentElement.lang = state.lang === "kok" ? "kok" : state.lang === "hi" ? "hi" : "en";
   }, [state.lang]);
 
   if (state.chats.length === 0) {
@@ -80,7 +102,19 @@ export function ChatApp() {
         onDelete={removeChat}
         onRename={renameChat}
         onPin={togglePin}
-        onLanguage={() => setLanguage(state.lang === "en" ? "hi" : "en")}
+        onLanguage={() => setLanguage(nextLanguage(state.lang))}
+        onExport={() => {
+          const body = chatTranscript(active.title, active.messages);
+          const blob = new Blob([body], { type: "text/plain;charset=utf-8" });
+          const link = document.createElement("a");
+          const name = (active.title || "susegad").replace(/[^\w\u0900-\u097F -]+/g, "").trim().slice(0, 40) || "susegad";
+          link.href = URL.createObjectURL(blob);
+          link.download = `${name}.txt`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }}
+        notes={notes}
+        onDeleteNote={removeNote}
         remaining={remaining}
       />
       <div className="coast-room app-main flex min-h-0 min-w-0 flex-col overflow-hidden">

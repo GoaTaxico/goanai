@@ -21,6 +21,7 @@ type Outgoing = {
   text: string;
   image?: FileUIPart | null;
   draw: boolean;
+  quiz: boolean;
 };
 
 type ComposerProps = {
@@ -57,6 +58,7 @@ export function Composer({
   const [photo, setPhoto] = useState<FileUIPart | null>(null);
   const [photoError, setPhotoError] = useState(false);
   const [draw, setDraw] = useState(false);
+  const [quiz, setQuiz] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -68,7 +70,7 @@ export function Composer({
     !outOfMessages &&
     !tooLong &&
     !busy &&
-    (draw ? text.trim().length > 0 : text.trim().length > 0 || photo != null) &&
+    (draw ? text.trim().length > 0 : quiz || text.trim().length > 0 || photo != null) &&
     (status === "ready" || status === "error" || extraBusy);
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export function Composer({
     setVoiceError(false);
     stopListening();
     const recognition = new Ctor();
-    recognition.lang = lang === "hi" ? "hi-IN" : "en-IN";
+    recognition.lang = lang === "hi" ? "hi-IN" : lang === "kok" ? "kok-IN" : "en-IN";
     recognition.interimResults = false;
     recognition.onresult = (event) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
@@ -113,7 +115,8 @@ export function Composer({
     setPhotoError(false);
     const field = document.getElementById("bharat-message");
     if (field instanceof HTMLTextAreaElement) field.style.height = "";
-    const ok = await onSend({ text: next, image, draw });
+    const ok = await onSend({ text: next, image, draw, quiz });
+    if (ok) setQuiz(false);
     if (!ok) {
       setText(next);
       setPhoto(image);
@@ -197,6 +200,7 @@ export function Composer({
             disabled={outOfMessages || busy}
             onClick={() => {
               setDraw((current) => !current);
+              setQuiz(false);
               setPhoto(null);
             }}
             className={`h-10 shrink-0 rounded-full border px-3 text-xs font-semibold disabled:opacity-40 ${
@@ -205,17 +209,52 @@ export function Composer({
           >
             {copy.draw}
           </button>
+          <button
+            type="button"
+            aria-pressed={quiz}
+            disabled={outOfMessages || busy}
+            onClick={() => {
+              setQuiz((current) => !current);
+              setDraw(false);
+            }}
+            className={`h-10 shrink-0 rounded-full border px-3 text-xs font-semibold disabled:opacity-40 ${
+              quiz ? "border-marigold bg-marigold text-indigo" : "border-line text-indigo"
+            }`}
+          >
+            {copy.quiz}
+          </button>
           </div>
+          {quiz ? (
+            <div className="flex flex-wrap gap-2 px-1">
+              {[copy.quizMaths, copy.quizScience, copy.quizEnglish, copy.quizHindi, copy.quizGk].map((subject) => (
+                <button
+                  key={subject}
+                  type="button"
+                  aria-pressed={text.trim() === subject}
+                  onClick={() => setText((current) => (current.trim() === subject ? "" : subject))}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    text.trim() === subject
+                      ? "border-marigold bg-marigold text-indigo"
+                      : "border-line bg-paper text-indigo"
+                  }`}
+                >
+                  {subject}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="flex items-end gap-2">
           <label className="sr-only" htmlFor="bharat-message">
-            {draw ? copy.drawPlaceholder : copy.placeholder}
+            {quiz ? copy.quizPlaceholder : draw ? copy.drawPlaceholder : copy.placeholder}
           </label>
           <textarea
             id="bharat-message"
             rows={1}
             value={text}
             disabled={outOfMessages}
-            placeholder={listening ? copy.listening : draw ? copy.drawPlaceholder : copy.placeholder}
+            placeholder={
+              listening ? copy.listening : quiz ? copy.quizPlaceholder : draw ? copy.drawPlaceholder : copy.placeholder
+            }
             onChange={(event) => {
               setText(event.target.value);
               const field = event.target;
@@ -244,7 +283,7 @@ export function Composer({
               disabled={!canSend}
               className={`send-btn shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 sm:px-5 ${canSend ? "is-ready" : ""}`}
             >
-              {draw ? copy.draw : copy.send}
+              {quiz ? copy.quiz : draw ? copy.draw : copy.send}
             </button>
           )}
           </div>
