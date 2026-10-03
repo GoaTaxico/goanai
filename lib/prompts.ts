@@ -246,8 +246,18 @@ const kokPrompts = [
   "PAN कार्ड सोंप्या उतरांनी समजायात",
 ];
 
+const mrPrompts = [
+  "UPI सोप्या शब्दांत समजावून सांगा",
+  "गोव्यात वीकएंड प्लान करा",
+  "शिक्षकांना एक विनम्र संदेश लिहा",
+  "GST सोप्या शब्दांत समजावून सांगा",
+  "शेजाऱ्यांना धन्यवाद संदेश लिहा",
+  "PAN कार्ड सोप्या शब्दांत समजावून सांगा",
+];
+
 export function useStarterPrompts(lang: Lang) {
   const indices = useSyncExternalStore(subscribe, pickThree, () => none);
   if (lang === "kok") return indices.map((index) => kokPrompts[index % kokPrompts.length]);
+  if (lang === "mr") return indices.map((index) => mrPrompts[index % mrPrompts.length]);
   return indices.map((index) => promptIdeas[index][lang]);
 }

@@ -12,6 +12,7 @@ import { Mark, TideLine } from "@/components/mark";
 import type { Copy, Lang } from "@/lib/copy";
 import { drawPicture } from "@/lib/draw";
 import { ERROR_LIMIT, ERROR_UNAVAILABLE, MAX_MESSAGE_CHARS } from "@/lib/limits";
+import { type MissedQuestion, saveMiss } from "@/lib/missed";
 import { saveNote } from "@/lib/notes";
 import { shuffleStarterPrompts, useStarterPrompts } from "@/lib/prompts";
 import { parseQuiz, quizBrief, readableMessage, visibleMessage } from "@/lib/quiz";
@@ -25,6 +26,8 @@ type ThreadProps = {
   remaining: number | null;
   onMessages: (chatId: string, messages: UIMessage[]) => void;
   onSettled: () => void;
+  practice: MissedQuestion | null;
+  onPracticeDone: () => void;
 };
 
 function messageText(message: UIMessage) {
@@ -54,6 +57,7 @@ function plainText(text: string) {
 function quizLanguage(lang: Lang) {
   if (lang === "hi") return "Hindi";
   if (lang === "kok") return "Konkani";
+  if (lang === "mr") return "Marathi";
   return "English";
 }
 
@@ -65,10 +69,13 @@ export function Thread({
   remaining,
   onMessages,
   onSettled,
+  practice,
+  onPracticeDone,
 }: ThreadProps) {
   const endRef = useRef<HTMLDivElement>(null);
   const drawAbort = useRef<AbortController | null>(null);
   const suggestionsAbort = useRef<AbortController | null>(null);
+  const practicedId = useRef<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -141,11 +148,50 @@ export function Thread({
     };
   }, [status, lastId, answer, question, lastHasImage]);
 
+  useEffect(() => {
+    messages.forEach((message, index) => {
+      if (message.role !== "assistant") return;
+      const quiz = parseQuiz(messageText(message));
+      if (!quiz || quiz.mark !== "wrong") return;
+      for (let earlier = index - 1; earlier >= 0; earlier -= 1) {
+        const previousMessage = messages[earlier];
+        if (!previousMessage || previousMessage.role !== "assistant") continue;
+        const previous = parseQuiz(messageText(previousMessage));
+        if (!previous?.question) continue;
+        saveMiss({ question: previous.question, options: previous.options, note: quiz.note });
+        break;
+      }
+    });
+  }, [messages]);
+
   const starters = useStarterPrompts(lang);
   const limitReached = error?.message.includes(ERROR_LIMIT) ?? false;
   const unavailable = error?.message.includes(ERROR_UNAVAILABLE) ?? false;
   const outOfMessages = limitReached || remaining === 0;
   const busy = status === "submitted" || status === "streaming" || drawing;
+
+  useEffect(() => {
+    if (!practice || practicedId.current === practice.id || busy) return;
+    practicedId.current = practice.id;
+    stopSuggestions();
+    clearError();
+    const material = [
+      practice.question,
+      ...practice.options.map((option) => `${option.letter}. ${option.label}`),
+      practice.note,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    void sendMessage({
+      text: `${copy.quizStartTopic.replace("{topic}", practice.question.slice(0, 80))}\n${quizBrief({
+        kind: "start",
+        topic: practice.question,
+        material,
+        language: quizLanguage(lang),
+      })}`,
+    });
+    onPracticeDone();
+  }, [practice, busy, clearError, copy.quizStartTopic, lang, onPracticeDone, sendMessage]);
   const waiting = (status === "submitted" || status === "streaming") && !answer;
   const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
   const lastAssistantId = lastAssistant?.id;
@@ -178,7 +224,7 @@ export function Thread({
     }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text.slice(0, 3000));
-    utterance.lang = lang === "hi" ? "hi-IN" : lang === "kok" ? "kok-IN" : "en-IN";
+    utterance.lang = lang === "hi" ? "hi-IN" : lang === "kok" ? "kok-IN" : lang === "mr" ? "mr-IN" : "en-IN";
     utterance.onend = () => setSpeakingId((current) => (current === id ? null : current));
     setSpeakingId(id);
     window.speechSynthesis.speak(utterance);
@@ -254,7 +300,7 @@ export function Thread({
     window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, "_blank", "noopener,noreferrer");
   }
 
-  async function send(message: { text: string; image?: FileUIPart | null; draw: boolean; quiz?: boolean }) {
+  async function send(message: { text: string; image?: FileUIPart | null; draw: boolean; quiz?: boolean; level?: string }) {
     if (message.draw) return requestPicture(message.text);
     stopSuggestions();
     clearError();
@@ -274,6 +320,7 @@ export function Thread({
         topic: trimmed,
         photo: Boolean(message.image),
         language: quizLanguage(lang),
+        level: message.level,
       })}`;
     } else if (!text && message.image) {
       text = copy.lookPrompt;

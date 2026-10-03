@@ -86,6 +86,7 @@ export function quizBrief(input: {
   material?: string;
   photo?: boolean;
   language: string;
+  level?: string;
 }) {
   if (input.kind === "answer") {
     return `[quiz]
@@ -94,6 +95,7 @@ Mark it, then ask the next question in the quiz block.
 Add a hint line: one short clue that does not name the correct choice.
 If this was question 5, finish the quiz and leave hint empty.
 Language: ${input.language}
+${input.level ? `Level: Class ${input.level} in an Indian school.` : ""}
 [/quiz]`;
   }
 
@@ -107,6 +109,7 @@ Language: ${input.language}
 Start a multiple-choice quiz of ${QUIZ_TOTAL} questions, one at a time.
 Topic: ${topic}
 Language: ${input.language}
+${input.level ? `Level: Class ${input.level} in an Indian school. Use words and facts a student in that class can handle.` : ""}
 ${photo}
 ${material}
 Ask question 1 now. Include a hint line: one short clue that does not name the correct choice. Use the quiz block and do not write anything outside it.

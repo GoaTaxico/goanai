@@ -17,12 +17,14 @@ import {
   useBharatState,
 } from "@/lib/chat-store";
 import { copy, type Lang } from "@/lib/copy";
+import { type MissedQuestion, removeMiss, useMissed } from "@/lib/missed";
 import { removeNote, useNotes } from "@/lib/notes";
 import { readableMessage } from "@/lib/quiz";
 
 function nextLanguage(lang: Lang): Lang {
   if (lang === "en") return "hi";
   if (lang === "hi") return "kok";
+  if (lang === "kok") return "mr";
   return "en";
 }
 
@@ -42,6 +44,8 @@ function chatTranscript(title: string, messages: { role: string; parts: { type: 
 export function ChatApp() {
   const state = useBharatState();
   const notes = useNotes();
+  const missed = useMissed();
+  const [practice, setPractice] = useState<MissedQuestion | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
 
@@ -61,7 +65,8 @@ export function ChatApp() {
   }, [refreshUsage]);
 
   useEffect(() => {
-    document.documentElement.lang = state.lang === "kok" ? "kok" : state.lang === "hi" ? "hi" : "en";
+    document.documentElement.lang =
+      state.lang === "kok" ? "kok" : state.lang === "mr" ? "mr" : state.lang === "hi" ? "hi" : "en";
   }, [state.lang]);
 
   if (state.chats.length === 0) {
@@ -115,6 +120,24 @@ export function ChatApp() {
         }}
         notes={notes}
         onDeleteNote={removeNote}
+        onShareNote={(text) => {
+          window.open(`https://wa.me/?text=${encodeURIComponent(text.slice(0, 4000))}`, "_blank", "noopener,noreferrer");
+        }}
+        onPrintNote={(text) => {
+          const page = window.open("", "_blank", "noopener,noreferrer");
+          if (!page) return;
+          page.document.title = "Susegad";
+          page.document.body.style.fontFamily = "sans-serif";
+          page.document.body.style.whiteSpace = "pre-wrap";
+          page.document.body.textContent = text;
+          page.print();
+        }}
+        missed={missed}
+        onRetryMiss={(item) => {
+          setPractice(item);
+          setSidebarOpen(false);
+        }}
+        onDeleteMiss={removeMiss}
         remaining={remaining}
       />
       <div className="coast-room app-main flex min-h-0 min-w-0 flex-col overflow-hidden">
@@ -141,6 +164,8 @@ export function ChatApp() {
           onMessages={updateMessages}
           remaining={remaining}
           onSettled={refreshUsage}
+          practice={practice}
+          onPracticeDone={() => setPractice(null)}
         />
       </div>
     </div>

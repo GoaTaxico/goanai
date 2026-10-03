@@ -90,7 +90,7 @@ export function saveChats(chats: StoredChat[]) {
 
 export function loadLang(): Lang {
   const saved = read(LANG_KEY);
-  if (saved === "hi" || saved === "kok") return saved;
+  if (saved === "hi" || saved === "kok" || saved === "mr") return saved;
   return "en";
 }
 

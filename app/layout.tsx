@@ -17,9 +17,9 @@ const tiro = Tiro_Devanagari_Hindi({
   display: "swap",
 });
 
-const title = "Susegad — Free chat in English, Hindi, Hinglish, and Konkani";
+const title = "Susegad — Free chat in English, Hindi, Hinglish, Marathi, and Konkani";
 const description =
-  "Susegad is a free chat app for India. Ask in English, Hindi, Hinglish, or Konkani for schoolwork, travel plans, bills, and everyday messages.";
+  "Susegad is a free chat app for India. Ask in English, Hindi, Hinglish, Marathi, or Konkani for schoolwork, travel plans, bills, and everyday messages.";
 
 function siteUrl() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();

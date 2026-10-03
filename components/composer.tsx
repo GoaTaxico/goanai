@@ -22,6 +22,7 @@ type Outgoing = {
   image?: FileUIPart | null;
   draw: boolean;
   quiz: boolean;
+  level?: string;
 };
 
 type ComposerProps = {
@@ -59,6 +60,7 @@ export function Composer({
   const [photoError, setPhotoError] = useState(false);
   const [draw, setDraw] = useState(false);
   const [quiz, setQuiz] = useState(false);
+  const [level, setLevel] = useState("");
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -92,7 +94,7 @@ export function Composer({
     setVoiceError(false);
     stopListening();
     const recognition = new Ctor();
-    recognition.lang = lang === "hi" ? "hi-IN" : lang === "kok" ? "kok-IN" : "en-IN";
+    recognition.lang = lang === "hi" ? "hi-IN" : lang === "kok" ? "kok-IN" : lang === "mr" ? "mr-IN" : "en-IN";
     recognition.interimResults = false;
     recognition.onresult = (event) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim() ?? "";
@@ -115,7 +117,7 @@ export function Composer({
     setPhotoError(false);
     const field = document.getElementById("bharat-message");
     if (field instanceof HTMLTextAreaElement) field.style.height = "";
-    const ok = await onSend({ text: next, image, draw, quiz });
+    const ok = await onSend({ text: next, image, draw, quiz, level: quiz ? level : "" });
     if (ok) setQuiz(false);
     if (!ok) {
       setText(next);
@@ -239,6 +241,23 @@ export function Composer({
                   }`}
                 >
                   {subject}
+                </button>
+              ))}
+              {[
+                ["5", copy.quizClass5],
+                ["8", copy.quizClass8],
+                ["10", copy.quizClass10],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={level === value}
+                  onClick={() => setLevel((current) => (current === value ? "" : value))}
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                    level === value ? "border-peacock bg-peacock text-[#f7f3ea]" : "border-line bg-paper text-indigo"
+                  }`}
+                >
+                  {label}
                 </button>
               ))}
             </div>

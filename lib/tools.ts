@@ -2,8 +2,10 @@ import "server-only";
 
 import { jsonSchema } from "ai";
 
+import { HOLIDAY_NOTE, HOLIDAYS, upcomingHolidays } from "@/lib/holidays";
 import { hindiNumber } from "@/lib/hindi-number";
 import { blockFetch, blockSearch, canFetch, canSearch, noteFetch, noteSearch } from "@/lib/quotas";
+import { rupeeWords } from "@/lib/rupees-words";
 
 function rupees(value: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -245,6 +247,127 @@ export const indiaTools = {
       if (!words) return { ok: false as const, reason: "Use a whole number from 0 to 99999999." };
       return { ok: true as const, value, words };
     },
+  },
+  rupeeWords: {
+    description:
+      "Write an amount in rupees as words for a cheque, in English and Hindi. Use this instead of spelling the amount yourself.",
+    inputSchema: jsonSchema<{ amount: number }>({
+      type: "object",
+      properties: {
+        amount: { ...numberSchema, description: "Amount in rupees, such as 1250.50" },
+      },
+      required: ["amount"],
+      additionalProperties: false,
+    }),
+    execute: async ({ amount }: { amount: number }) => {
+      const words = rupeeWords(amount);
+      if (!words) return { ok: false as const, reason: "Use an amount from 0 to 99999999 rupees." };
+      return { ok: true as const, ...words };
+    },
+  },
+  simpleInterest: {
+    description: "Calculate simple interest in rupees from principal, yearly rate, and time in years.",
+    inputSchema: jsonSchema<{ principal: number; annualRatePercent: number; years: number }>({
+      type: "object",
+      properties: {
+        principal: { ...numberSchema, description: "Principal in rupees" },
+        annualRatePercent: { ...numberSchema, description: "Yearly interest percent" },
+        years: { ...numberSchema, description: "Time in years" },
+      },
+      required: ["principal", "annualRatePercent", "years"],
+      additionalProperties: false,
+    }),
+    execute: async ({
+      principal,
+      annualRatePercent,
+      years,
+    }: {
+      principal: number;
+      annualRatePercent: number;
+      years: number;
+    }) => {
+      if (!inRange(principal, 1, 100_000_000_000) || !inRange(annualRatePercent, 0, 100) || !inRange(years, 0, 100)) {
+        return { ok: false as const, reason: "Give a principal, a yearly rate, and time in years." };
+      }
+      const interest = (principal * annualRatePercent * years) / 100;
+      return {
+        ok: true as const,
+        interest: rupees(interest),
+        amount: rupees(principal + interest),
+        principal: rupees(principal),
+        annualRatePercent,
+        years,
+      };
+    },
+  },
+  profitLoss: {
+    description: "Calculate profit or loss from a cost price and a selling price, in rupees.",
+    inputSchema: jsonSchema<{ cost: number; selling: number }>({
+      type: "object",
+      properties: {
+        cost: { ...numberSchema, description: "Cost price in rupees" },
+        selling: { ...numberSchema, description: "Selling price in rupees" },
+      },
+      required: ["cost", "selling"],
+      additionalProperties: false,
+    }),
+    execute: async ({ cost, selling }: { cost: number; selling: number }) => {
+      if (!inRange(cost, 0.01, 100_000_000_000) || !inRange(selling, 0, 100_000_000_000)) {
+        return { ok: false as const, reason: "Give a cost price and a selling price." };
+      }
+      const difference = selling - cost;
+      const percent = (difference / cost) * 100;
+      return {
+        ok: true as const,
+        kind: difference >= 0 ? ("profit" as const) : ("loss" as const),
+        amount: rupees(Math.abs(difference)),
+        percent: Math.round(Math.abs(percent) * 100) / 100,
+        cost: rupees(cost),
+        selling: rupees(selling),
+      };
+    },
+  },
+  average: {
+    description: "Calculate the average of a list of numbers. Use this for marks, bills, or scores.",
+    inputSchema: jsonSchema<{ values: number[] }>({
+      type: "object",
+      properties: {
+        values: {
+          type: "array",
+          items: { type: "number" },
+          description: "The numbers to average",
+        },
+      },
+      required: ["values"],
+      additionalProperties: false,
+    }),
+    execute: async ({ values }: { values: number[] }) => {
+      if (!Array.isArray(values) || values.length < 1 || values.length > 20 || values.some((value) => !inRange(value, -1_000_000_000, 1_000_000_000))) {
+        return { ok: false as const, reason: "Give between 1 and 20 numbers." };
+      }
+      const total = values.reduce((sum, value) => sum + value, 0);
+      return {
+        ok: true as const,
+        count: values.length,
+        total: Math.round(total * 100) / 100,
+        average: Math.round((total / values.length) * 100) / 100,
+      };
+    },
+  },
+  schoolHolidays: {
+    description:
+      "List India's 2026 national holidays and Goa school breaks for 2026-27. Use this instead of web search when someone asks about those holidays.",
+    inputSchema: jsonSchema<Record<string, never>>({
+      type: "object",
+      properties: {},
+      additionalProperties: false,
+    }),
+    execute: async () => ({
+      ok: true as const,
+      note: HOLIDAY_NOTE,
+      upcoming: upcomingHolidays(),
+      all: HOLIDAYS,
+    }),
   },
 };
 
