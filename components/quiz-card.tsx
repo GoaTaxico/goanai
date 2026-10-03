@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import type { Copy } from "@/lib/copy";
 import type { QuizView } from "@/lib/quiz";
 
@@ -9,6 +13,7 @@ type QuizCardProps = {
 };
 
 export function QuizCard({ copy, quiz, live, onChoose }: QuizCardProps) {
+  const [hintOpen, setHintOpen] = useState(false);
   const finished = quiz.mark === "done";
   const progress = finished ? 100 : Math.round((quiz.ask / quiz.total) * 100);
   const score = copy.quizScore.replace("{score}", String(quiz.score)).replace("{total}", String(quiz.total));
@@ -32,6 +37,21 @@ export function QuizCard({ copy, quiz, live, onChoose }: QuizCardProps) {
         </p>
       ) : null}
       {finished || !quiz.question ? null : <p className="text-sm leading-6 text-foreground">{quiz.question}</p>}
+      {finished || !quiz.hint ? null : (
+        <div>
+          <button
+            type="button"
+            aria-expanded={hintOpen}
+            onClick={() => setHintOpen((open) => !open)}
+            className="rounded-full border border-marigold/70 bg-paper px-3 py-1 text-xs font-semibold text-indigo"
+          >
+            {hintOpen ? copy.quizHideHint : copy.quizHint}
+          </button>
+          {hintOpen ? (
+            <p className="mt-2 rounded-2xl bg-sand px-3 py-2 text-sm leading-6 text-foreground">{quiz.hint}</p>
+          ) : null}
+        </div>
+      )}
       {finished ? null : (
         <div className="flex flex-col gap-2">
           {quiz.options.map((option) => (

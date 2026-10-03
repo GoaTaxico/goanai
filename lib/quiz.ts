@@ -10,6 +10,7 @@ export type QuizOption = {
 export type QuizView = {
   mark: QuizMark;
   note: string;
+  hint: string;
   score: number;
   ask: number;
   total: number;
@@ -39,7 +40,7 @@ export function parseQuiz(text: string): QuizView | null {
       }
       continue;
     }
-    const field = trimmed.match(/^(mark|note|score|ask|question)\s*:\s*(.*)$/i);
+    const field = trimmed.match(/^(mark|note|score|ask|question|hint)\s*:\s*(.*)$/i);
     if (field?.[1]) fields.set(field[1].toLowerCase(), (field[2] ?? "").trim());
   }
 
@@ -52,6 +53,7 @@ export function parseQuiz(text: string): QuizView | null {
   return {
     mark,
     note: fields.get("note") ?? "",
+    hint: fields.get("hint") ?? "",
     score: clamp(Number(fields.get("score")), 0, QUIZ_TOTAL),
     ask: clamp(Number(fields.get("ask")), 1, QUIZ_TOTAL),
     total: QUIZ_TOTAL,
@@ -89,7 +91,8 @@ export function quizBrief(input: {
     return `[quiz]
 The line above is my answer.
 Mark it, then ask the next question in the quiz block.
-If this was question 5, finish the quiz.
+Add a hint line: one short clue that does not name the correct choice.
+If this was question 5, finish the quiz and leave hint empty.
 Language: ${input.language}
 [/quiz]`;
   }
@@ -106,6 +109,6 @@ Topic: ${topic}
 Language: ${input.language}
 ${photo}
 ${material}
-Ask question 1 now. Use the quiz block and do not write anything outside it.
+Ask question 1 now. Include a hint line: one short clue that does not name the correct choice. Use the quiz block and do not write anything outside it.
 [/quiz]`;
 }
