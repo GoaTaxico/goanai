@@ -14,24 +14,28 @@ const globalStore = globalThis as typeof globalThis & {
 const buckets = globalStore.__bharatRateLimit ?? new Map<string, Bucket>();
 globalStore.__bharatRateLimit = buckets;
 
-function istDay(now = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-}
-
 function dailyLimit() {
   const parsed = Number(process.env.DAILY_MESSAGE_LIMIT ?? 50);
   if (!Number.isFinite(parsed) || parsed < 1) return 50;
   return Math.floor(parsed);
 }
 
-function hashVisitor(ip: string) {
+export function visitorHash(ip: string) {
   const salt = process.env.RATE_LIMIT_SALT || "bharat-ai";
   return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+}
+
+function hashVisitor(ip: string) {
+  return visitorHash(ip);
+}
+
+export function istDay(now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
 }
 
 export function getClientIp(request: Request) {

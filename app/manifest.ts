@@ -4,7 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Susegad",
     short_name: "Susegad",
-    description: "Chat with Susegad in English, Hindi, or Hinglish.",
+    description:
+      "Susegad is a free chat app for India. Ask in English, Hindi, or Hinglish.",
     start_url: "/",
     display: "standalone",
     background_color: "#f4ecdf",

@@ -76,10 +76,38 @@ export function updateMessages(id: string, messages: UIMessage[]) {
         ? {
             ...item,
             messages,
-            title: title || item.title,
+            title: chat.titleLocked ? chat.title : title || item.title,
             updatedAt: Date.now(),
           }
         : item,
+    ),
+  });
+}
+
+export function renameChat(id: string, title: string) {
+  const current = readClientState();
+  const next = title.trim().replace(/\s+/g, " ").slice(0, 42);
+  commit({
+    ...current,
+    chats: current.chats.map((item) =>
+      item.id === id
+        ? {
+            ...item,
+            title: next,
+            titleLocked: next.length > 0,
+            updatedAt: Date.now(),
+          }
+        : item,
+    ),
+  });
+}
+
+export function togglePin(id: string) {
+  const current = readClientState();
+  commit({
+    ...current,
+    chats: current.chats.map((item) =>
+      item.id === id ? { ...item, pinned: !item.pinned } : item,
     ),
   });
 }

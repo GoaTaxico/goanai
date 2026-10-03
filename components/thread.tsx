@@ -1,15 +1,16 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
 
 import { Composer } from "@/components/composer";
 import { MarkdownMessage } from "@/components/markdown-message";
 import { Mark, TideLine } from "@/components/mark";
 import type { Copy, Lang } from "@/lib/copy";
-import { shuffleStarterPrompts, useStarterPrompts } from "@/lib/prompts";
+import { drawPicture } from "@/lib/draw";
 import { ERROR_LIMIT, ERROR_UNAVAILABLE, MAX_MESSAGE_CHARS } from "@/lib/limits";
+import { shuffleStarterPrompts, useStarterPrompts } from "@/lib/prompts";
 
 type ThreadProps = {
   chatId: string;
@@ -28,6 +29,19 @@ function messageText(message: UIMessage) {
     .join("");
 }
 
+function messageImages(message: UIMessage) {
+  return message.parts.filter(
+    (part): part is FileUIPart =>
+      part.type === "file" &&
+      part.mediaType.startsWith("image/") &&
+      (part.url.startsWith("data:image/jpeg;base64,") || part.url.startsWith("https://")),
+  );
+}
+
+function plainText(text: string) {
+  return text.replace(/[`*_#>]/g, "").trim();
+}
+
 export function Thread({
   chatId,
   initialMessages,
@@ -38,12 +52,16 @@ export function Thread({
   onSettled,
 }: ThreadProps) {
   const endRef = useRef<HTMLDivElement>(null);
+  const drawAbort = useRef<AbortController | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [followUps, setFollowUps] = useState<string[]>([]);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const [drawError, setDrawError] = useState<string | null>(null);
 
-  const { messages, sendMessage, regenerate, status, stop, error, clearError } = useChat({
+  const { messages, sendMessage, setMessages, regenerate, status, stop, error, clearError } = useChat({
     id: chatId,
     messages: initialMessages,
     transport: new DefaultChatTransport({
@@ -57,21 +75,29 @@ export function Thread({
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
-  }, [messages, status, error, followUps]);
+  }, [messages, status, error, followUps, drawing, drawError]);
 
   useEffect(() => {
     if (status === "ready" || status === "error") onSettled();
   }, [status, messages.length, onSettled]);
 
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+      drawAbort.current?.abort();
+    };
+  }, []);
+
   const last = messages.at(-1);
   const lastId = last?.id;
   const lastRole = last?.role;
   const answer = lastRole === "assistant" && last ? messageText(last) : "";
+  const lastHasImage = last ? messageImages(last).length > 0 : false;
   const previousQuestion = [...messages].reverse().find((message) => message.role === "user");
   const question = previousQuestion ? messageText(previousQuestion) : "";
 
   useEffect(() => {
-    if (status !== "ready" || !lastId || !answer || !question) return;
+    if (status !== "ready" || !lastId || !answer || !question || lastHasImage) return;
 
     let cancelled = false;
     fetch("/api/suggestions", {
@@ -90,15 +116,20 @@ export function Thread({
     return () => {
       cancelled = true;
     };
-  }, [status, lastId, answer, question]);
+  }, [status, lastId, answer, question, lastHasImage]);
 
   const starters = useStarterPrompts(lang);
   const limitReached = error?.message.includes(ERROR_LIMIT) ?? false;
   const unavailable = error?.message.includes(ERROR_UNAVAILABLE) ?? false;
   const outOfMessages = limitReached || remaining === 0;
-  const busy = status === "submitted" || status === "streaming";
-  const waiting = busy && lastRole !== "assistant";
-  const lastAssistantId = [...messages].reverse().find((message) => message.role === "assistant")?.id;
+  const busy = status === "submitted" || status === "streaming" || drawing;
+  const waiting = (status === "submitted" || status === "streaming") && !answer;
+  const lastAssistant = [...messages].reverse().find((message) => message.role === "assistant");
+  const lastAssistantId = lastAssistant?.id;
+  const canRewrite =
+    Boolean(lastAssistant && messageText(lastAssistant) && messageImages(lastAssistant).length === 0) &&
+    !busy &&
+    !outOfMessages;
 
   async function copyText(id: string, text: string) {
     try {
@@ -112,7 +143,78 @@ export function Thread({
     }
   }
 
-  function send(text: string) {
+  function toggleSpeak(id: string, text: string) {
+    if (typeof window.speechSynthesis === "undefined") return;
+    if (speakingId === id) {
+      window.speechSynthesis.cancel();
+      setSpeakingId(null);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.slice(0, 3000));
+    utterance.lang = lang === "hi" ? "hi-IN" : "en-IN";
+    utterance.onend = () => setSpeakingId((current) => (current === id ? null : current));
+    setSpeakingId(id);
+    window.speechSynthesis.speak(utterance);
+  }
+
+  async function requestPicture(prompt: string) {
+    drawAbort.current?.abort();
+    const controller = new AbortController();
+    drawAbort.current = controller;
+    setDrawing(true);
+    setDrawError(null);
+    setFollowUps([]);
+    try {
+      const drawn = await drawPicture(prompt, controller.signal);
+      if (!drawn.ok) {
+        setDrawError(
+          drawn.error === "image_limit"
+            ? copy.imageLimit
+            : drawn.error === "unavailable"
+              ? copy.unavailable
+              : copy.drawFailed,
+        );
+        return false;
+      }
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "user",
+          parts: [{ type: "text", text: prompt }],
+        },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          parts: [
+            { type: "file", mediaType: "image/png", url: drawn.url },
+            { type: "text", text: copy.drawReady },
+          ],
+        },
+      ]);
+      return true;
+    } catch (caught) {
+      if (caught instanceof DOMException && caught.name === "AbortError") return false;
+      setDrawError(copy.drawFailed);
+      return false;
+    } finally {
+      if (drawAbort.current === controller) setDrawing(false);
+    }
+  }
+
+  async function send(message: { text: string; image?: FileUIPart | null; draw: boolean }) {
+    if (message.draw) return requestPicture(message.text);
+    clearError();
+    setDrawError(null);
+    setFollowUps([]);
+    const text = message.text.trim() || (message.image ? copy.lookPrompt : "");
+    if (!text) return false;
+    void sendMessage(message.image ? { text, files: [message.image] } : { text });
+    return true;
+  }
+
+  function askAgain(text: string) {
     clearError();
     setFollowUps([]);
     void sendMessage({ text });
@@ -158,7 +260,7 @@ export function Thread({
                     key={suggestion}
                     type="button"
                     disabled={outOfMessages}
-                    onClick={() => send(suggestion)}
+                    onClick={() => void send({ text: suggestion, draw: false })}
                     className={`tile-card rise overflow-hidden rounded-3xl text-left disabled:opacity-50 ${
                       index === 1 ? "delay-1" : index === 2 ? "delay-2" : ""
                     }`}
@@ -181,7 +283,8 @@ export function Thread({
           ) : (
             messages.map((message) => {
               const text = messageText(message);
-              if (!text && message.role !== "assistant") return null;
+              const images = messageImages(message);
+              if (!text && images.length === 0 && message.role !== "assistant") return null;
               const mine = message.role === "user";
               const editing = editingId === message.id;
 
@@ -235,6 +338,10 @@ export function Thread({
                       }`}
                     >
                       {mine ? null : <span className="kaavi-line -mx-4 -mt-3 mb-3" />}
+                      {images.map((image) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={image.url} src={image.url} alt="" className="mb-2 max-h-72 w-full rounded-xl object-cover" />
+                      ))}
                       {mine ? (
                         <p className="whitespace-pre-wrap">{text}</p>
                       ) : text ? (
@@ -245,11 +352,11 @@ export function Thread({
                     </div>
                   )}
                   {text && !editing ? (
-                    <div className={`flex gap-3 px-2 text-xs text-muted ${mine ? "justify-end" : ""}`}>
+                    <div className={`flex flex-wrap gap-x-3 gap-y-1 px-2 text-xs text-muted ${mine ? "justify-end" : ""}`}>
                       <button type="button" onClick={() => void copyText(message.id, text)}>
                         {copiedId === message.id ? copy.copied : copy.copy}
                       </button>
-                      {mine && !busy && !outOfMessages ? (
+                      {mine && images.length === 0 && !busy && !outOfMessages ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -260,7 +367,17 @@ export function Thread({
                           {copy.edit}
                         </button>
                       ) : null}
-                      {!mine && message.id === lastAssistantId && !busy && !outOfMessages ? (
+                      {!mine ? (
+                        <button type="button" onClick={() => void copyText(`${message.id}-wa`, plainText(text))}>
+                          {copiedId === `${message.id}-wa` ? copy.copied : copy.whatsapp}
+                        </button>
+                      ) : null}
+                      {!mine ? (
+                        <button type="button" onClick={() => toggleSpeak(message.id, plainText(text))}>
+                          {speakingId === message.id ? copy.listenStop : copy.listen}
+                        </button>
+                      ) : null}
+                      {!mine && message.id === lastAssistantId && images.length === 0 && !busy && !outOfMessages ? (
                         <button
                           type="button"
                           onClick={() => {
@@ -278,6 +395,24 @@ export function Thread({
               );
             })
           )}
+          {canRewrite ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => askAgain(copy.shorterPrompt)}
+                className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-indigo"
+              >
+                {copy.shorter}
+              </button>
+              <button
+                type="button"
+                onClick={() => askAgain(copy.translatePrompt)}
+                className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-indigo"
+              >
+                {copy.otherLanguage}
+              </button>
+            </div>
+          ) : null}
           {status === "ready" && followUps.length > 0 && !outOfMessages ? (
             <div className="rise">
               <p className="px-1 text-xs font-medium text-muted">{copy.followLabel}</p>
@@ -286,7 +421,7 @@ export function Thread({
                   <button
                     key={item}
                     type="button"
-                    onClick={() => send(item)}
+                    onClick={() => void send({ text: item, draw: false })}
                     className="rounded-2xl border border-line bg-paper px-4 py-3 text-left text-sm transition hover:-translate-y-0.5 hover:border-peacock"
                   >
                     {item}
@@ -295,15 +430,20 @@ export function Thread({
               </div>
             </div>
           ) : null}
-          {waiting ? (
+          {waiting || drawing ? (
             <p className="flex items-center gap-2 text-sm text-peacock" aria-live="polite">
               <span className="tide-dots" aria-hidden="true">
                 <i />
                 <i />
                 <i />
               </span>
-              {copy.thinking}
+              {drawing ? copy.drawing : copy.thinking}
             </p>
+          ) : null}
+          {drawError ? (
+            <div className="rounded-3xl border border-terracotta/40 bg-[#f8e4dc] px-4 py-3">
+              <p className="text-sm font-semibold text-terracotta">{drawError}</p>
+            </div>
           ) : null}
           {error ? (
             <div className="rounded-3xl border border-terracotta/40 bg-[#f8e4dc] px-4 py-3">
@@ -320,11 +460,14 @@ export function Thread({
       </div>
       <Composer
         copy={copy}
+        lang={lang}
         status={status}
+        extraBusy={drawing}
         limitReached={limitReached}
         remaining={remaining}
         onStop={() => {
-          void stop();
+          if (drawing) drawAbort.current?.abort();
+          else void stop();
         }}
         onSend={send}
       />

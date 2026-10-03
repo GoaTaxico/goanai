@@ -8,6 +8,8 @@ export type StoredChat = {
   model: string;
   messages: UIMessage[];
   updatedAt: number;
+  pinned?: boolean;
+  titleLocked?: boolean;
 };
 
 const CHATS_KEY = "bharat-ai-chats";

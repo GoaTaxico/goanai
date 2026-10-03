@@ -8,9 +8,11 @@ import { Sidebar } from "@/components/sidebar";
 import { Thread } from "@/components/thread";
 import {
   removeChat,
+  renameChat,
   selectChat,
   setLanguage,
   startChat,
+  togglePin,
   updateMessages,
   useBharatState,
 } from "@/lib/chat-store";
@@ -52,7 +54,10 @@ export function ChatApp() {
   }
 
   const text = copy[state.lang];
-  const ordered = [...state.chats].sort((a, b) => b.updatedAt - a.updatedAt);
+  const ordered = [...state.chats].sort((a, b) => {
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+    return b.updatedAt - a.updatedAt;
+  });
   const active =
     state.chats.find((chat) => chat.id === state.activeId) ?? ordered[0];
 
@@ -73,6 +78,8 @@ export function ChatApp() {
           setSidebarOpen(false);
         }}
         onDelete={removeChat}
+        onRename={renameChat}
+        onPin={togglePin}
         onLanguage={() => setLanguage(state.lang === "en" ? "hi" : "en")}
         remaining={remaining}
       />

@@ -1,6 +1,7 @@
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
+  isStepCount,
   streamText,
   toUIMessageStream,
 } from "ai";
@@ -9,6 +10,7 @@ import { ERROR_BUSY, ERROR_LIMIT, ERROR_UNAVAILABLE } from "@/lib/limits";
 import { prepareMessages, redactStream } from "@/lib/messages";
 import { BHARAT_INSTRUCTIONS, modelOptions, resolveModel } from "@/lib/models";
 import { consumeDailyMessage, getClientIp } from "@/lib/rate-limit";
+import { indiaTools } from "@/lib/tools";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -33,11 +35,10 @@ export async function POST(request: Request) {
   }
 
   const model = resolveModel();
-  const messages = prepareMessages(payload.messages);
+  if (!model) return plain(ERROR_UNAVAILABLE, 503);
 
-  if (!model || !messages) {
-    return plain(ERROR_BUSY, 400);
-  }
+  const messages = prepareMessages(payload.messages);
+  if (!messages) return plain(ERROR_BUSY, 400);
 
   const usage = consumeDailyMessage(getClientIp(request));
   if (!usage.ok) {
@@ -49,6 +50,8 @@ export async function POST(request: Request) {
       model,
       instructions: BHARAT_INSTRUCTIONS,
       messages: await convertToModelMessages(messages),
+      tools: indiaTools,
+      stopWhen: isStepCount(4),
       abortSignal: request.signal,
       maxRetries: 0,
       providerOptions: modelOptions(),
