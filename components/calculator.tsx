@@ -18,13 +18,19 @@ import {
   motion,
   percentOf,
   percentRatio,
+  placeValue,
   powersOf,
+  primeWork,
+  pythagoras,
+  roundNumber,
   profitLoss,
   ratioWork,
   romanNumber,
   shapeMeasure,
   simpleInterest,
   splitBill,
+  addTime,
+  convertTime,
   timesTable,
 } from "@/lib/school-maths";
 
@@ -44,6 +50,11 @@ const KINDS = [
   "factors",
   "powers",
   "roman",
+  "prime",
+  "pythagoras",
+  "time",
+  "round",
+  "places",
   "fraction",
   "ratio",
   "discount",
@@ -111,6 +122,11 @@ export function Calculator({ copy, bare = false }: { copy: Copy; bare?: boolean 
     factors: copy.calcFactors,
     powers: copy.calcPowers,
     roman: copy.calcRoman,
+    prime: copy.calcPrime,
+    pythagoras: copy.calcPythagoras,
+    time: copy.calcClock,
+    round: copy.calcRound,
+    places: copy.calcPlaces,
     fraction: copy.calcFraction,
     ratio: copy.calcRatio,
     discount: copy.calcDiscount,
@@ -125,7 +141,7 @@ export function Calculator({ copy, bare = false }: { copy: Copy; bare?: boolean 
     let next: string[] | null = null;
     if (kind === "rupees") {
       const words = chequeWords(a);
-      next = words ? [words.english, words.hindi] : null;
+      next = words ? [words.english, words.hindi, words.konkani, words.marathi] : null;
     } else if (kind === "interest") {
       const result = simpleInterest(a, b, c);
       next = result ? [`${copy.resultInterest}: ${result.interest}`, `${copy.resultAmount}: ${result.amount}`] : null;
@@ -136,7 +152,14 @@ export function Calculator({ copy, bare = false }: { copy: Copy; bare?: boolean 
         : null;
     } else if (kind === "average") {
       const result = averageOf(a);
-      next = result ? [`${copy.calcAverage}: ${result.average}`, `${copy.resultTotal}: ${result.total}`] : null;
+      next = result
+        ? [
+            `${copy.calcAverage}: ${result.average}`,
+            `${copy.resultMedian}: ${result.median}`,
+            `${copy.resultMode}: ${result.mode.length ? result.mode.join(", ") : copy.resultNoMode}`,
+            `${copy.resultTotal}: ${result.total}`,
+          ]
+        : null;
     } else if (kind === "gst") {
       const result = gstAmount(a, b, inclusive);
       next = result ? [`${copy.resultBase}: ${result.base}`, `GST: ${result.gst}`, `${copy.resultTotal}: ${result.total}`] : null;
@@ -204,6 +227,40 @@ export function Calculator({ copy, bare = false }: { copy: Copy; bare?: boolean 
     } else if (kind === "speed") {
       const result = motion(find, a, b);
       next = result ? [`${result.value} ${result.unit}`] : null;
+    } else if (kind === "prime") {
+      const result = primeWork(a);
+      next = result
+        ? [result.prime ? copy.resultPrime : copy.resultNotPrime, ...result.rules.map((rule) => `${rule.by} · ${rule.yes ? copy.resultYes : copy.resultNo}`)]
+        : null;
+    } else if (kind === "pythagoras") {
+      const result = pythagoras(extra, a, b);
+      next = result == null ? null : [`${result}`];
+    } else if (kind === "time") {
+      if (extra === "add") {
+        const result = addTime(a, b, c, d);
+        next = result ? [`${result.hours} ${copy.calcHours}`, `${result.minutes} ${copy.calcMinutes}`] : null;
+      } else {
+        const result = convertTime(extra, a);
+        next = result == null ? null : result.asMinutes ? [`${result.minutes} ${copy.calcMinutes}`] : [`${result.hours} ${copy.calcHours}`, `${result.minutes} ${copy.calcMinutes}`];
+      }
+    } else if (kind === "round") {
+      const result = roundNumber(a, extra);
+      next = result == null ? null : [`${result}`];
+    } else if (kind === "places") {
+      const result = placeValue(a);
+      const places = {
+        one: copy.placeOne,
+        ten: copy.placeTen,
+        hundred: copy.placeHundred,
+        thousand: copy.placeThousand,
+        tenThousand: copy.placeTenThousand,
+        lakh: copy.placeLakh,
+        tenLakh: copy.placeTenLakh,
+        crore: copy.placeCrore,
+        tenCrore: copy.placeTenCrore,
+        hundredCrore: copy.placeHundredCrore,
+      };
+      next = result ? result.map((row) => `${row.digit} · ${places[row.place]}`) : null;
     } else {
       next = timesTable(a);
     }
@@ -230,7 +287,7 @@ export function Calculator({ copy, bare = false }: { copy: Copy; bare?: boolean 
           onChange={(event) => {
             const next = event.target.value as Kind;
             setKind(next);
-            setExtra(next === "units" ? "length" : "of");
+            setExtra(next === "units" ? "length" : next === "time" ? "toMin" : next === "round" ? "10" : next === "pythagoras" ? "hyp" : "of");
             setWay("forward");
             setLines([]);
             setFailed(false);
@@ -435,7 +492,60 @@ export function Calculator({ copy, bare = false }: { copy: Copy; bare?: boolean 
             <Field label={copy.calcAmount} value={a} onChange={setA} />
           </>
         ) : null}
-        {kind === "factors" || kind === "powers" || kind === "roman" ? <Field label={copy.calcFirst} value={a} onChange={setA} /> : null}
+        {kind === "factors" || kind === "powers" || kind === "roman" || kind === "prime" || kind === "places" ? (
+          <Field label={copy.calcFirst} value={a} onChange={setA} />
+        ) : null}
+        {kind === "pythagoras" ? (
+          <>
+            <select
+              value={extra}
+              onChange={(event) => setExtra(event.target.value)}
+              className="w-full rounded-full border border-white/15 bg-[#08343c] px-3 py-2 text-sm text-[#f7f3ea] outline-none"
+            >
+              <option value="hyp">{copy.calcHyp}</option>
+              <option value="leg">{copy.calcLeg}</option>
+            </select>
+            <Field label={extra === "leg" ? copy.calcHypotenuse : copy.calcSide} value={a} onChange={setA} />
+            <Field label={copy.calcSide} value={b} onChange={setB} />
+          </>
+        ) : null}
+        {kind === "time" ? (
+          <>
+            <select
+              value={extra}
+              onChange={(event) => setExtra(event.target.value)}
+              className="w-full rounded-full border border-white/15 bg-[#08343c] px-3 py-2 text-sm text-[#f7f3ea] outline-none"
+            >
+              <option value="toMin">{copy.calcToMinutes}</option>
+              <option value="toHours">{copy.calcToHours}</option>
+              <option value="add">{copy.calcAddTime}</option>
+            </select>
+            {extra === "add" ? (
+              <>
+                <Field label={copy.calcHours} value={a} onChange={setA} />
+                <Field label={copy.calcMinutes} value={b} onChange={setB} />
+                <Field label={copy.calcHours} value={c} onChange={setC} />
+                <Field label={copy.calcMinutes} value={d} onChange={setD} />
+              </>
+            ) : (
+              <Field label={extra === "toMin" ? copy.calcHours : copy.calcMinutes} value={a} onChange={setA} />
+            )}
+          </>
+        ) : null}
+        {kind === "round" ? (
+          <>
+            <select
+              value={extra}
+              onChange={(event) => setExtra(event.target.value)}
+              className="w-full rounded-full border border-white/15 bg-[#08343c] px-3 py-2 text-sm text-[#f7f3ea] outline-none"
+            >
+              <option value="10">{copy.calcRound10}</option>
+              <option value="100">{copy.calcRound100}</option>
+              <option value="1000">{copy.calcRound1000}</option>
+            </select>
+            <Field label={copy.calcFirst} value={a} onChange={setA} />
+          </>
+        ) : null}
         {kind === "table" ? <Field label={copy.calcTableOf} value={a} onChange={setA} /> : null}
       </div>
       <button

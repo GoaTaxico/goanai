@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { ChatStatus, FileUIPart } from "ai";
 
@@ -332,14 +333,9 @@ export function Composer({
         ) : null}
         <p className="text-center text-xs text-muted">
           {copy.madeBefore}
-          <a
-            href="https://coastalcode.in"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-peacock underline underline-offset-2"
-          >
+          <Link href="/about" className="font-medium text-peacock underline underline-offset-2">
             {copy.madeName}
-          </a>
+          </Link>
           {" ("}
           <a
             href="https://coastalcode.in"

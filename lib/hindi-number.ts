@@ -20,7 +20,7 @@ function under1000(value: number) {
 }
 
 export function hindiNumber(value: number) {
-  if (!Number.isInteger(value) || value < 0 || value > 99_999_999) return null;
+  if (!Number.isInteger(value) || value < 0 || value > 9_999_999_999) return null;
   if (value === 0) return "शून्य";
 
   const parts: string[] = [];

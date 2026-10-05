@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { Composer } from "@/components/composer";
@@ -387,14 +388,9 @@ export function Thread({
                 <p className="mt-4 max-w-sm text-sm font-medium text-indigo">{copy.about}</p>
                 <p className="mt-1 max-w-sm text-sm text-muted">
                   {copy.creditBefore}
-                  <a
-                    href="https://coastalcode.in"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-peacock underline underline-offset-2"
-                  >
+                  <Link href="/about" className="font-medium text-peacock underline underline-offset-2">
                     {copy.creditName}
-                  </a>
+                  </Link>
                   {copy.creditAfter}
                 </p>
               </div>

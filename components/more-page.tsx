@@ -6,17 +6,19 @@ import { useEffect, useRef, useState } from "react";
 
 import { Calculator } from "@/components/calculator";
 import { Flashcards } from "@/components/flashcards";
+import { HomeworkList } from "@/components/homework-list";
 import { Mark } from "@/components/mark";
 import { StudyTimer } from "@/components/study-timer";
 import { copy } from "@/lib/copy";
 import { useBharatState } from "@/lib/chat-store";
 import { upcomingHolidays } from "@/lib/holidays";
 import { missedQuizMaterial, removeMiss, useMissed } from "@/lib/missed";
+import { useHomework } from "@/lib/homework";
 import { removeNote, useNotes } from "@/lib/notes";
 import { queuePractice } from "@/lib/practice-queue";
 import { useScores } from "@/lib/scores";
 
-type Panel = "calc" | "notes" | "missed" | "scores" | "holidays" | "timer" | "cards";
+type Panel = "calc" | "notes" | "homework" | "missed" | "scores" | "holidays" | "timer" | "cards";
 
 function shareNote(text: string) {
   window.open(`https://wa.me/?text=${encodeURIComponent(text.slice(0, 4000))}`, "_blank", "noopener,noreferrer");
@@ -75,6 +77,14 @@ function Glyph({ panel }: { panel: Panel }) {
       </svg>
     );
   }
+  if (panel === "homework") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
+        <path d="M8 4h8a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" {...common} />
+        <path d="M9 9h6M9 13h6M9 17h3" {...common} />
+      </svg>
+    );
+  }
   if (panel === "scores") {
     return (
       <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
@@ -95,6 +105,7 @@ export function Shelf({ embedded = false, onBack, onDone }: { embedded?: boolean
   const state = useBharatState();
   const text = copy[state.lang];
   const notes = useNotes();
+  const homework = useHomework();
   const missed = useMissed();
   const scores = useScores();
   const holidays = upcomingHolidays();
@@ -113,6 +124,7 @@ export function Shelf({ embedded = false, onBack, onDone }: { embedded?: boolean
   const titles: Record<Panel, string> = {
     calc: text.calc,
     notes: text.notes,
+    homework: text.homework,
     missed: text.missed,
     scores: text.scores,
     holidays: text.holidays,
@@ -131,6 +143,7 @@ export function Shelf({ embedded = false, onBack, onDone }: { embedded?: boolean
   const menu: { id: Panel; hint: string; wide?: boolean }[] = [
     { id: "calc", hint: text.calcNote, wide: true },
     { id: "notes", hint: notes.length === 0 ? text.emptyNotes : String(notes.length) },
+    { id: "homework", hint: homework.length === 0 ? text.emptyHomework : String(homework.filter((item) => !item.done).length) },
     { id: "missed", hint: missed.length === 0 ? text.emptyMissed : String(missed.length) },
     { id: "scores", hint: latest ? `${latest.score}/${latest.total}` : text.emptyScores },
     { id: "cards", hint: missed.length === 0 ? text.flashEmpty : String(missed.length) },
@@ -204,6 +217,14 @@ export function Shelf({ embedded = false, onBack, onDone }: { embedded?: boolean
               <Calculator copy={text} bare />
             </div>
           </div>
+        ) : null}
+
+        {panel === "homework" ? (
+          <section className="mx-auto w-full max-w-2xl px-4 pb-10">
+            <div className="rounded-[1.6rem] bg-paper px-4 py-4 text-indigo shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
+              <HomeworkList copy={text} />
+            </div>
+          </section>
         ) : null}
 
         {panel === "notes" ? (

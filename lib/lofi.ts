@@ -106,8 +106,15 @@ async function startMusic(kind: Music) {
   context = audio;
   if (audio.state === "suspended") await audio.resume();
   const master = audio.createGain();
-  master.gain.value = kind === "rain" || kind === "waves" ? 0.2 : 0.14;
-  master.connect(audio.destination);
+  master.gain.value = 1;
+  const limiter = audio.createDynamicsCompressor();
+  limiter.threshold.value = -2;
+  limiter.knee.value = 3;
+  limiter.ratio.value = 8;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.18;
+  master.connect(limiter);
+  limiter.connect(audio.destination);
 
   if (kind === "lofi" || kind === "rain" || kind === "waves" || kind === "night") {
     const noise = brownNoise(audio);
@@ -115,7 +122,7 @@ async function startMusic(kind: Music) {
     filter.type = "lowpass";
     filter.frequency.value = kind === "waves" ? 420 : kind === "night" ? 280 : 640;
     const noiseGain = audio.createGain();
-    noiseGain.gain.value = kind === "night" ? 0.08 : kind === "lofi" ? 0.22 : 0.45;
+    noiseGain.gain.value = kind === "night" ? 0.9 : kind === "lofi" ? 0.85 : 1.7;
     noise.connect(filter);
     filter.connect(noiseGain);
     noiseGain.connect(master);
@@ -142,7 +149,7 @@ async function startMusic(kind: Music) {
         filter.type = "lowpass";
         filter.frequency.value = 880;
         const gain = audio.createGain();
-        gain.gain.value = 0.035;
+        gain.gain.value = 0.2;
         tone.connect(filter);
         filter.connect(gain);
         gain.connect(master);
@@ -165,7 +172,7 @@ async function startMusic(kind: Music) {
       tone.type = "sine";
       tone.frequency.value = freq;
       const gain = audio.createGain();
-      gain.gain.value = 0.04;
+      gain.gain.value = 0.28;
       tone.connect(gain);
       gain.connect(master);
       tone.start();
@@ -175,24 +182,24 @@ async function startMusic(kind: Music) {
 
   if (kind === "piano") {
     let step = 0;
-    chime(audio, master, PIANO[0], 0.08, 1.6);
+    chime(audio, master, PIANO[0], 0.9, 1.6);
     timers.push(
       window.setInterval(() => {
         if (!context) return;
         step = (step + 1) % PIANO.length;
-        chime(context, master, PIANO[step], 0.08, 1.6);
+        chime(context, master, PIANO[step], 0.9, 1.6);
       }, 1400),
     );
   }
 
   if (kind === "bells") {
     let step = 0;
-    chime(audio, master, BELLS[0], 0.06, 3.2);
+    chime(audio, master, BELLS[0], 0.85, 3.2);
     timers.push(
       window.setInterval(() => {
         if (!context) return;
         step = (step + 1) % BELLS.length;
-        chime(context, master, BELLS[step], 0.06, 3.2);
+        chime(context, master, BELLS[step], 0.85, 3.2);
       }, 2800),
     );
   }
