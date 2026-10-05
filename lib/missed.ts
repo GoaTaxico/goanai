@@ -87,6 +87,16 @@ export function saveMiss(input: Omit<MissedQuestion, "id" | "createdAt">) {
   ]);
 }
 
+export function missedQuizMaterial(items: MissedQuestion[]) {
+  return items
+    .map((item) =>
+      [item.question, ...item.options.map((option) => `${option.letter}. ${option.label}`), item.note]
+        .filter(Boolean)
+        .join("\n"),
+    )
+    .join("\n\n");
+}
+
 export function removeMiss(id: string) {
   loadMissed();
   writeMissed(readMissed().filter((item) => item.id !== id));

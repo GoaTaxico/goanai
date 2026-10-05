@@ -425,6 +425,21 @@ body {
   }
 }
 
+.chat-copy {
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+[data-chat-text="sm"] .chat-copy {
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+
+[data-chat-text="lg"] .chat-copy {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
 .markdown p {
   margin: 0.6em 0;
 }

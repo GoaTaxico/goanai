@@ -80,6 +80,13 @@ export function readableMessage(text: string) {
   return lines.join("\n");
 }
 
+export type PracticeQuiz = {
+  id: string;
+  topic: string;
+  material: string;
+  style?: "choice" | "truefalse";
+};
+
 export function quizBrief(input: {
   kind: "start" | "answer";
   topic?: string;
@@ -87,13 +94,19 @@ export function quizBrief(input: {
   photo?: boolean;
   language: string;
   level?: string;
+  style?: "choice" | "truefalse";
 }) {
+  const trueFalse =
+    input.style === "truefalse"
+      ? "Style: true or false. Each question has only two choices. A must be True and B must be False. Do not add C or D."
+      : "";
   if (input.kind === "answer") {
     return `[quiz]
 The line above is my answer.
 Mark it, then ask the next question in the quiz block.
 Add a hint line: one short clue that does not name the correct choice.
 If this was question 5, finish the quiz and leave hint empty.
+If this quiz is true or false, the next question must use only A: True and B: False.
 Language: ${input.language}
 ${input.level ? `Level: Class ${input.level} in an Indian school.` : ""}
 [/quiz]`;
@@ -110,6 +123,7 @@ Start a multiple-choice quiz of ${QUIZ_TOTAL} questions, one at a time.
 Topic: ${topic}
 Language: ${input.language}
 ${input.level ? `Level: Class ${input.level} in an Indian school. Use words and facts a student in that class can handle.` : ""}
+${trueFalse}
 ${photo}
 ${material}
 Ask question 1 now. Include a hint line: one short clue that does not name the correct choice. Use the quiz block and do not write anything outside it.

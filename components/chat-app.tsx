@@ -17,9 +17,8 @@ import {
   useBharatState,
 } from "@/lib/chat-store";
 import { copy, type Lang } from "@/lib/copy";
-import { type MissedQuestion, removeMiss, useMissed } from "@/lib/missed";
-import { removeNote, useNotes } from "@/lib/notes";
-import { readableMessage } from "@/lib/quiz";
+import { type PracticeQuiz, readableMessage } from "@/lib/quiz";
+import { takePractice } from "@/lib/practice-queue";
 
 function nextLanguage(lang: Lang): Lang {
   if (lang === "en") return "hi";
@@ -43,9 +42,7 @@ function chatTranscript(title: string, messages: { role: string; parts: { type: 
 
 export function ChatApp() {
   const state = useBharatState();
-  const notes = useNotes();
-  const missed = useMissed();
-  const [practice, setPractice] = useState<MissedQuestion | null>(null);
+  const [practice, setPractice] = useState<PracticeQuiz | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(null);
 
@@ -63,6 +60,11 @@ export function ChatApp() {
   useEffect(() => {
     refreshUsage();
   }, [refreshUsage]);
+
+  useEffect(() => {
+    const pending = takePractice();
+    if (pending) setPractice(pending);
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang =
@@ -118,26 +120,6 @@ export function ChatApp() {
           link.click();
           URL.revokeObjectURL(link.href);
         }}
-        notes={notes}
-        onDeleteNote={removeNote}
-        onShareNote={(text) => {
-          window.open(`https://wa.me/?text=${encodeURIComponent(text.slice(0, 4000))}`, "_blank", "noopener,noreferrer");
-        }}
-        onPrintNote={(text) => {
-          const page = window.open("", "_blank", "noopener,noreferrer");
-          if (!page) return;
-          page.document.title = "Susegad";
-          page.document.body.style.fontFamily = "sans-serif";
-          page.document.body.style.whiteSpace = "pre-wrap";
-          page.document.body.textContent = text;
-          page.print();
-        }}
-        missed={missed}
-        onRetryMiss={(item) => {
-          setPractice(item);
-          setSidebarOpen(false);
-        }}
-        onDeleteMiss={removeMiss}
         remaining={remaining}
       />
       <div className="coast-room app-main flex min-h-0 min-w-0 flex-col overflow-hidden">

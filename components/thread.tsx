@@ -12,10 +12,12 @@ import { Mark, TideLine } from "@/components/mark";
 import type { Copy, Lang } from "@/lib/copy";
 import { drawPicture } from "@/lib/draw";
 import { ERROR_LIMIT, ERROR_UNAVAILABLE, MAX_MESSAGE_CHARS } from "@/lib/limits";
-import { type MissedQuestion, saveMiss } from "@/lib/missed";
+import { saveMiss } from "@/lib/missed";
+import { type PracticeQuiz, parseQuiz, quizBrief, readableMessage, visibleMessage } from "@/lib/quiz";
+import { saveScore } from "@/lib/scores";
+import { useTextSize } from "@/lib/text-size";
 import { saveNote } from "@/lib/notes";
 import { shuffleStarterPrompts, useStarterPrompts } from "@/lib/prompts";
-import { parseQuiz, quizBrief, readableMessage, visibleMessage } from "@/lib/quiz";
 import { sourceLinks } from "@/lib/sources";
 
 type ThreadProps = {
@@ -26,7 +28,7 @@ type ThreadProps = {
   remaining: number | null;
   onMessages: (chatId: string, messages: UIMessage[]) => void;
   onSettled: () => void;
-  practice: MissedQuestion | null;
+  practice: PracticeQuiz | null;
   onPracticeDone: () => void;
 };
 
@@ -72,6 +74,7 @@ export function Thread({
   practice,
   onPracticeDone,
 }: ThreadProps) {
+  const textSize = useTextSize();
   const endRef = useRef<HTMLDivElement>(null);
   const drawAbort = useRef<AbortController | null>(null);
   const suggestionsAbort = useRef<AbortController | null>(null);
@@ -162,6 +165,27 @@ export function Thread({
         break;
       }
     });
+    messages.forEach((message, index) => {
+      if (message.role !== "assistant") return;
+      const quiz = parseQuiz(messageText(message));
+      if (!quiz || quiz.mark !== "done") return;
+      let topic = "";
+      for (let earlier = index - 1; earlier >= 0; earlier -= 1) {
+        const previous = messages[earlier];
+        if (!previous || previous.role !== "user") continue;
+        const raw = messageText(previous);
+        if (!raw.includes("[quiz]")) continue;
+        topic = visibleMessage(raw);
+        break;
+      }
+      saveScore({
+        id: message.id,
+        topic,
+        score: quiz.score,
+        total: quiz.total,
+        createdAt: Date.now(),
+      });
+    });
   }, [messages]);
 
   const starters = useStarterPrompts(lang);
@@ -175,19 +199,13 @@ export function Thread({
     practicedId.current = practice.id;
     stopSuggestions();
     clearError();
-    const material = [
-      practice.question,
-      ...practice.options.map((option) => `${option.letter}. ${option.label}`),
-      practice.note,
-    ]
-      .filter(Boolean)
-      .join("\n");
     void sendMessage({
-      text: `${copy.quizStartTopic.replace("{topic}", practice.question.slice(0, 80))}\n${quizBrief({
+      text: `${copy.quizStartTopic.replace("{topic}", practice.topic.slice(0, 80))}\n${quizBrief({
         kind: "start",
-        topic: practice.question,
-        material,
+        topic: practice.topic,
+        material: practice.material,
         language: quizLanguage(lang),
+        style: practice.style,
       })}`,
     });
     onPracticeDone();
@@ -300,7 +318,7 @@ export function Thread({
     window.open(`https://wa.me/?text=${encodeURIComponent(caption)}`, "_blank", "noopener,noreferrer");
   }
 
-  async function send(message: { text: string; image?: FileUIPart | null; draw: boolean; quiz?: boolean; level?: string }) {
+  async function send(message: { text: string; image?: FileUIPart | null; draw: boolean; quiz?: boolean; level?: string; trueFalse?: boolean }) {
     if (message.draw) return requestPicture(message.text);
     stopSuggestions();
     clearError();
@@ -321,6 +339,7 @@ export function Thread({
         photo: Boolean(message.image),
         language: quizLanguage(lang),
         level: message.level,
+        style: message.trueFalse ? "truefalse" : "choice",
       })}`;
     } else if (!text && message.image) {
       text = copy.lookPrompt;
@@ -348,7 +367,7 @@ export function Thread({
   return (
     <div className="balcao flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="balcao-arch" aria-hidden="true" />
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-8 sm:py-6">
+      <div data-chat-text={textSize} className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-3 sm:px-8 sm:py-6">
         <div className="mx-auto flex max-w-3xl flex-col gap-5">
           {messages.length === 0 ? (
             <div className="px-1 py-2 sm:py-8">
@@ -461,7 +480,7 @@ export function Thread({
                     </form>
                   ) : (
                     <div
-                      className={`max-w-[90%] min-w-0 overflow-hidden px-4 py-3 text-sm leading-6 break-words ${
+                      className={`chat-copy max-w-[90%] min-w-0 overflow-hidden px-4 py-3 break-words ${
                         mine
                           ? "rounded-[1.4rem] rounded-br-md bg-indigo text-[#f7f3ea] shadow-[0_10px_24px_rgba(8,52,60,0.12)]"
                           : "kaavi-reply rounded-[1.4rem] rounded-bl-md border border-line bg-paper text-foreground shadow-[0_10px_24px_rgba(8,52,60,0.06)]"
@@ -550,6 +569,13 @@ export function Thread({
                 className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-indigo"
               >
                 {copy.shorter}
+              </button>
+              <button
+                type="button"
+                onClick={() => askAgain(copy.classFivePrompt)}
+                className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-indigo"
+              >
+                {copy.classFive}
               </button>
               <button
                 type="button"

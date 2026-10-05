@@ -2,11 +2,10 @@ import { useState } from "react";
 
 import { InstallButton } from "@/components/install-button";
 import { Mark } from "@/components/mark";
+import { Shelf } from "@/components/more-page";
 import type { Copy } from "@/lib/copy";
-import { upcomingHolidays } from "@/lib/holidays";
-import type { MissedQuestion } from "@/lib/missed";
-import type { Note } from "@/lib/notes";
 import type { StoredChat } from "@/lib/storage";
+import { setTextSize, useTextSize } from "@/lib/text-size";
 
 type SidebarProps = {
   copy: Copy;
@@ -21,13 +20,6 @@ type SidebarProps = {
   onPin: (id: string) => void;
   onLanguage: () => void;
   onExport: () => void;
-  notes: Note[];
-  onDeleteNote: (id: string) => void;
-  onShareNote: (text: string) => void;
-  onPrintNote: (text: string) => void;
-  missed: MissedQuestion[];
-  onRetryMiss: (item: MissedQuestion) => void;
-  onDeleteMiss: (id: string) => void;
   remaining: number | null;
 };
 
@@ -44,18 +36,11 @@ export function Sidebar({
   onPin,
   onLanguage,
   onExport,
-  notes,
-  onDeleteNote,
-  onShareNote,
-  onPrintNote,
-  missed,
-  onRetryMiss,
-  onDeleteMiss,
   remaining,
 }: SidebarProps) {
-  const holidays = upcomingHolidays();
-  const [shelfOpen, setShelfOpen] = useState(false);
+  const textSize = useTextSize();
   const [query, setQuery] = useState("");
+  const [shelf, setShelf] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const needle = query.trim().toLowerCase();
@@ -74,7 +59,7 @@ export function Sidebar({
         />
       ) : null}
       <aside
-        className={`app-drawer shore relative min-h-0 flex-col overflow-hidden text-[#f7f3ea] shadow-[8px_0_30px_rgba(8,52,60,0.22)] ${
+        className={`app-drawer shore min-h-0 flex-col overflow-hidden text-[#f7f3ea] shadow-[8px_0_30px_rgba(8,52,60,0.22)] ${
           open ? "is-open" : ""
         }`}
       >
@@ -93,6 +78,10 @@ export function Sidebar({
             ×
           </button>
         </div>
+        {shelf ? (
+          <Shelf embedded onBack={() => setShelf(false)} onDone={onClose} />
+        ) : (
+          <>
         <p className="px-5 pb-4 text-xs leading-5 text-[#c9ddd8]">{copy.tagline}</p>
         <div className="px-4">
           <button
@@ -201,8 +190,7 @@ export function Sidebar({
         <div className="shrink-0 space-y-3 border-t border-white/10 p-4">
           <button
             type="button"
-            aria-expanded={shelfOpen}
-            onClick={() => setShelfOpen(true)}
+            onClick={() => setShelf(true)}
             className="w-full rounded-full border border-[#f2c98a]/50 px-3 py-2 text-sm text-[#f7f3ea] hover:bg-white/10"
           >
             {copy.shelf}
@@ -220,6 +208,30 @@ export function Sidebar({
             </p>
           ) : null}
           <p className="text-xs leading-5 text-[#c9ddd8]">{copy.footer}</p>
+          <div>
+            <p className="pb-2 text-xs font-semibold tracking-[0.18em] text-[#f2c98a]">{copy.textSize}</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  ["sm", copy.textSmall],
+                  ["md", copy.textMedium],
+                  ["lg", copy.textLarge],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={textSize === value}
+                  onClick={() => setTextSize(value)}
+                  className={`rounded-full border px-2 py-2 text-xs ${
+                    textSize === value ? "border-[#f2c98a] bg-[#f2c98a] text-indigo" : "border-[#f2c98a]/50 text-[#f7f3ea]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <InstallButton copy={copy} />
           <button
             type="button"
@@ -229,104 +241,8 @@ export function Sidebar({
             {copy.language}
           </button>
         </div>
-        {shelfOpen ? (
-          <div className="shore absolute inset-0 z-20 flex min-h-0 flex-col">
-            <div className="tide-bar shrink-0" />
-            <div className="flex items-center gap-3 px-4 pb-3 pt-5">
-              <p className="min-w-0 flex-1 font-display text-2xl leading-none tracking-wide">{copy.shelf}</p>
-              <button
-                type="button"
-                onClick={() => setShelfOpen(false)}
-                aria-label={copy.close}
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#f2c98a]/50 text-lg"
-              >
-                ×
-              </button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="border-t border-white/10 px-4 py-3">
-                <p className="pb-2 text-xs font-semibold tracking-[0.18em] text-[#f2c98a]">{copy.notes}</p>
-                {notes.length === 0 ? (
-                  <p className="text-xs leading-5 text-[#c9ddd8]">{copy.emptyNotes}</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {notes.map((note) => (
-                      <li key={note.id} className="flex items-start gap-2">
-                        <p className="min-w-0 flex-1 text-xs leading-5 text-[#f7f3ea]">{note.text}</p>
-                        <button
-                          type="button"
-                          aria-label={copy.shareNote}
-                          onClick={() => onShareNote(note.text)}
-                          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs text-[#c9ddd8] hover:text-white"
-                        >
-                          ↗
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={copy.printNote}
-                          onClick={() => onPrintNote(note.text)}
-                          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs text-[#c9ddd8] hover:text-white"
-                        >
-                          ▤
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={copy.deleteNote}
-                          onClick={() => onDeleteNote(note.id)}
-                          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-sm text-[#c9ddd8] hover:text-white"
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="border-t border-white/10 px-4 py-3">
-                <p className="pb-2 text-xs font-semibold tracking-[0.18em] text-[#f2c98a]">{copy.missed}</p>
-                {missed.length === 0 ? (
-                  <p className="text-xs leading-5 text-[#c9ddd8]">{copy.emptyMissed}</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {missed.map((item) => (
-                      <li key={item.id} className="flex items-start gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShelfOpen(false);
-                            onRetryMiss(item);
-                          }}
-                          className="min-w-0 flex-1 text-left text-xs leading-5 text-[#f7f3ea]"
-                        >
-                          {item.question}
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={copy.deleteMiss}
-                          onClick={() => onDeleteMiss(item.id)}
-                          className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-sm text-[#c9ddd8] hover:text-white"
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div className="border-t border-white/10 px-4 py-3">
-                <p className="pb-1 text-xs font-semibold tracking-[0.18em] text-[#f2c98a]">{copy.holidays}</p>
-                <p className="pb-2 text-xs leading-5 text-[#c9ddd8]">{copy.holidayNote}</p>
-                <ul className="space-y-1">
-                  {holidays.map((holiday) => (
-                    <li key={`${holiday.date}-${holiday.name}`} className="text-xs leading-5 text-[#f7f3ea]">
-                      <span className="text-[#f2c98a]">{holiday.label}</span> {holiday.name}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-        ) : null}
+          </>
+        )}
       </aside>
     </>
   );

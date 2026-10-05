@@ -23,6 +23,7 @@ type Outgoing = {
   draw: boolean;
   quiz: boolean;
   level?: string;
+  trueFalse?: boolean;
 };
 
 type ComposerProps = {
@@ -61,6 +62,7 @@ export function Composer({
   const [draw, setDraw] = useState(false);
   const [quiz, setQuiz] = useState(false);
   const [level, setLevel] = useState("");
+  const [trueFalse, setTrueFalse] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceError, setVoiceError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -117,7 +119,7 @@ export function Composer({
     setPhotoError(false);
     const field = document.getElementById("bharat-message");
     if (field instanceof HTMLTextAreaElement) field.style.height = "";
-    const ok = await onSend({ text: next, image, draw, quiz, level: quiz ? level : "" });
+    const ok = await onSend({ text: next, image, draw, quiz, level: quiz ? level : "", trueFalse: quiz && trueFalse });
     if (ok) setQuiz(false);
     if (!ok) {
       setText(next);
@@ -216,7 +218,10 @@ export function Composer({
             aria-pressed={quiz}
             disabled={outOfMessages || busy}
             onClick={() => {
-              setQuiz((current) => !current);
+              setQuiz((current) => {
+                if (current) setTrueFalse(false);
+                return !current;
+              });
               setDraw(false);
             }}
             className={`h-10 shrink-0 rounded-full border px-3 text-xs font-semibold disabled:opacity-40 ${
@@ -260,6 +265,16 @@ export function Composer({
                   {label}
                 </button>
               ))}
+              <button
+                type="button"
+                aria-pressed={trueFalse}
+                onClick={() => setTrueFalse((current) => !current)}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                  trueFalse ? "border-peacock bg-peacock text-[#f7f3ea]" : "border-line bg-paper text-indigo"
+                }`}
+              >
+                {copy.quizTrueFalse}
+              </button>
             </div>
           ) : null}
           <div className="flex items-end gap-2">

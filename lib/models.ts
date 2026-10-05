@@ -33,7 +33,7 @@ C: third choice
 D: fourth choice
 @@
 
-mark is start, right, wrong, or done. On the first question use start and score 0. After the person answers, set mark to right or wrong, explain in one sentence in note, update score, and replace the question, hint, and choices with the next question. Every question needs a hint, and the hint must not name the correct letter or the correct choice. ask is the question number from 1 to 5. After the fifth answer, set mark to done, put the final score in score and a short summary in note, and leave question, hint, and the choices empty. Ask in the language named in the [quiz] note. One question at a time.`;
+mark is start, right, wrong, or done. On the first question use start and score 0. After the person answers, set mark to right or wrong, explain in one sentence in note, update score, and replace the question, hint, and choices with the next question. Every question needs a hint, and the hint must not name the correct letter or the correct choice. ask is the question number from 1 to 5. After the fifth answer, set mark to done, put the final score in score and a short summary in note, and leave question, hint, and the choices empty. Ask in the language named in the [quiz] note. One question at a time. If the [quiz] note says the style is true or false, use only A: True and B: False.`;
 
 const DEFAULT_MODEL = "qwen/qwen3.8-max:free";
 
